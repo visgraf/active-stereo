@@ -1,4 +1,14 @@
-"""The Vieth-Muller circle: the locus of zero geometric disparity.
+"""The Vieth-Muller circle: the zero-disparity locus of a *toed-in* rig.
+
+IMPORTANT (ADR-0007): this is **not** the horopter of the rig that
+`geometry/projection.py` models. That module implements a shifted-frustum
+(off-axis) projection, whose zero-disparity locus is a fronto-parallel plane at
+the fixation distance. The two agree near the fixation axis and diverge with
+eccentricity.
+
+The circle is kept because it is the correct target for a framework claiming to
+model biological stereopsis. Treat it as documentation of where L1 is heading,
+not as a description of what L1 currently does.
 
 For a rig with baseline ``b`` fixating at total vergence angle ``mu``, the
 theoretical horopter is the circle through both nodal points and the fixation

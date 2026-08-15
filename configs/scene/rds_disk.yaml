@@ -1,0 +1,18 @@
+defaults: [../default.yaml]
+rig:
+  # Fixation BEHIND the scene, so no surface sits at disparity 0 -- a matcher
+  # must reject the endpoints of its own search range. See depthmaps docstring.
+  vergence_deg: 1.467      # ~2.5 m fixation at 64 mm baseline
+scene:
+  kind: rds
+  depth_fn: disk
+  shape: [240, 320]
+  near: 0.9
+  far: 1.6
+  radius: 0.4
+  dot_size: 2
+  density: 0.5
+  binary: true
+  noise: 0.0
+matcher:
+  max_disparity: 48

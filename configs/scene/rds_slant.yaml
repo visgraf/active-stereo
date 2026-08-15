@@ -1,0 +1,8 @@
+defaults: [rds_disk.yaml]
+scene:
+  kind: rds
+  depth_fn: slanted_plane
+  near: 0.9
+  far: 1.6
+# Control condition: a monotone gradient warps injectively, so occlusion is
+# exactly zero and any coverage loss is attributable to matching alone.

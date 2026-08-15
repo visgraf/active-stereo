@@ -7,7 +7,7 @@ name = "activestereo"
 version = "0.1.0"
 description = "Six-layer active Bayesian inference framework for stereoscopic 3D vision"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Luiz Velho", email = "lvelho@impa.br" }]
 dependencies = [
@@ -39,6 +39,7 @@ markers = [
     "slow: long-running tests (renders, full pipelines)",
     "requires_cv2: needs OpenCV installed",
     "regression: encodes a lesson learned; see the referenced ADR",
+    "integration: exercises several layers end to end",
 ]
 
 [tool.ruff]
@@ -50,7 +51,12 @@ select = ["E", "F", "I", "N", "UP", "B", "NPY", "RUF"]
 ignore = ["N803", "N806"]  # allow math-style names: X, Z, K, R
 
 [tool.mypy]
-python_version = "3.10"
+# python_version is deliberately unset so mypy follows the running interpreter.
+# Pinning it below 3.12 makes mypy parse third-party stubs with an old grammar;
+# numpy's stubs use PEP 695 `type X = ...` and the check aborts outright.
 packages = ["activestereo"]
 ignore_missing_imports = true
 disallow_untyped_defs = true
+# A `type: ignore` is a place the checker has been told to stop looking. Flag any
+# that are no longer needed so the count trends down, not up.
+warn_unused_ignores = true
