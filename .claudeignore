@@ -1,0 +1,13 @@
+# Keep Claude's context lean and free of blobs/secrets.
+results/
+data/
+*.blend
+*.exr
+*.npz
+*.npy
+*.pdf
+*.pptx
+.venv/
+paper/*.bbl
+uv.lock
+poetry.lock

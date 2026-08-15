@@ -1,0 +1,17 @@
+// Copy to .vscode/settings.json (git-ignored) to use these locally.
+{
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests"],
+  "python.analysis.extraPaths": ["src"],
+  "editor.formatOnSave": true,
+  "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+  "files.exclude": { "**/__pycache__": true, "**/.pytest_cache": true },
+  "latex-workshop.latex.outDir": "%DIR%",
+
+  // Start in Plan mode on this repo. Raise autonomy deliberately, per docs/workflow.md.
+  "claudeCode.initialPermissionMode": "plan",
+  "claudeCode.preferredLocation": "sidebar",
+  "claudeCode.autosave": true,
+  "claudeCode.respectGitIgnore": true,
+  "claudeCode.usePythonEnvironment": true
+}

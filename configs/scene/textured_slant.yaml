@@ -1,0 +1,6 @@
+defaults: [../default.yaml]
+scene:
+  kind: textured_slant
+  shape: [240, 320]
+  slant_deg: 25.0
+  texture: procedural_noise

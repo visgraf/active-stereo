@@ -1,0 +1,33 @@
+# Base configuration. Experiments compose from this via `defaults:`.
+seed: 20260815
+
+rig:
+  baseline: 0.064        # metres
+  focal_px: 800.0        # pixels
+  vergence_deg: 3.67     # degrees at I/O; converted to radians on load
+
+scene:
+  shape: [240, 320]      # (rows, cols)
+  depth_range: [0.4, 3.0]
+  placeholder_depth: 0.7   # nearer than fixation; see exp001 findings.md
+
+matcher:
+  kind: block            # block | sgbm
+  max_disparity: 32
+  window: 7
+  uniqueness: 0.05
+
+scaling:
+  cues: [stereo]
+
+control:
+  dt: 0.0166667          # 60 Hz
+  process_var: 1.0e-3
+  vergence_window: 15
+  min_valid_fraction: 0.25
+
+policy:
+  saliency_sigma: 3.0
+  inhibition_radius: 20.0
+  max_fixations: 20
+  foveal_coefficient: 1.0e-4   # ADR-0003; calibrate per scene

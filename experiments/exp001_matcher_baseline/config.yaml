@@ -1,0 +1,14 @@
+defaults: [../../configs/default.yaml]
+experiment:
+  tag: exp001
+  hypothesis: >
+    With the ADR-0003 foveal confinement term active, SGBM achieves lower
+    foveal depth error than block matching at equal disparity range. Without
+    the term, the difference is not detectable.
+  acceptance: >
+    Median absolute depth error inside the foveal radius is lower for SGBM by a
+    margin exceeding the seed-to-seed spread across 5 seeds.
+matcher:
+  max_disparity: 32
+  window: 7
+seeds: [0, 1, 2, 3, 4]

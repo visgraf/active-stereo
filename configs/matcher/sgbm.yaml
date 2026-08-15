@@ -1,0 +1,6 @@
+defaults: [../default.yaml]
+matcher:
+  kind: sgbm
+  max_disparity: 32      # must be divisible by 16 for OpenCV SGBM
+  window: 5
+  uniqueness: 10         # SGBM's uniquenessRatio, an integer percentage

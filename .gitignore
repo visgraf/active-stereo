@@ -1,0 +1,41 @@
+# Results are reproducible from configs + run-ids; never versioned.
+results/
+!results/.gitkeep
+
+# Data blobs live behind DVC / git-lfs pointers.
+data/**
+!data/.gitkeep
+!data/*.dvc
+!data/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# LaTeX build artefacts (Overleaf syncs source only)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+paper/*.toc
+paper/main.pdf
+
+# Blender
+*.blend1
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/settings.json

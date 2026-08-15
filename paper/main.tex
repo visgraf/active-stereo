@@ -1,0 +1,56 @@
+% active-stereo — main manuscript.
+% Synced with Overleaf via the Git bridge. Keep one sentence per line: it makes
+% git diffs readable and merges tractable.
+\documentclass[11pt]{article}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[numbers]{natbib}
+\usepackage{hyperref}
+
+\title{Stereoscopic 3D Vision as Active Bayesian Inference:\\A Six-Layer Framework}
+\author{Luiz Velho\\VISGRAF Laboratory, IMPA}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+\section{Framework}
+\label{sec:framework}
+
+\subsection{L1: Generative geometry}
+\subsection{L2: Neural encoding}
+\subsection{L3: Disparity-field inference}
+\subsection{L4: Metric scaling and cue fusion}
+\subsection{L5: Oculomotor control}
+\subsection{L6: Active sampling}
+
+\section{Structural closures}
+\label{sec:closures}
+% Scaling, control-regime, and reference-frame closures.
+% Cross-reference docs/architecture.md; keep the two in agreement.
+
+\section{Implementation}
+\label{sec:implementation}
+% Reference the repository by tag, not by branch, so the paper cites a fixed state.
+
+\section{Experiments}
+\label{sec:experiments}
+% Every number here cites a run-id. See experiments/*/findings.md.
+
+\section{Related work}
+\label{sec:related}
+
+\section{Discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

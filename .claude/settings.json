@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pytest*)",
+      "Bash(python -m pytest*)",
+      "Bash(ruff check*)",
+      "Bash(ruff format*)",
+      "Bash(mypy*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git checkout -b*)",
+      "Bash(python -m experiments*)",
+      "Read(src/**)",
+      "Read(tests/**)",
+      "Read(docs/**)",
+      "Read(configs/**)",
+      "Read(experiments/**)",
+      "Edit(src/**)",
+      "Edit(tests/**)",
+      "Edit(experiments/**)",
+      "Edit(configs/**)",
+      "Edit(docs/lab-notebook/**)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(gh pr*)",
+      "Bash(pip install*)",
+      "Bash(uv*)",
+      "Edit(pyproject.toml)",
+      "Edit(CLAUDE.md)",
+      "Edit(.github/**)",
+      "Edit(paper/**)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(git rebase*)",
+      "Bash(git commit --amend*)",
+      "Bash(rm -rf*)",
+      "Edit(docs/decisions/**)",
+      "Edit(data/**)",
+      "Read(.env)",
+      "Read(**/*.key)",
+      "Read(**/credentials*)"
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "activestereo"
+version = "0.1.0"
+description = "Six-layer active Bayesian inference framework for stereoscopic 3D vision"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Luiz Velho", email = "lvelho@impa.br" }]
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+cv = ["opencv-python-headless>=4.8"]
+viz = ["matplotlib>=3.7"]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "hypothesis>=6.90",
+]
+
+[project.scripts]
+astereo = "activestereo.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: long-running tests (renders, full pipelines)",
+    "requires_cv2: needs OpenCV installed",
+    "regression: encodes a lesson learned; see the referenced ADR",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "experiments"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "NPY", "RUF"]
+ignore = ["N803", "N806"]  # allow math-style names: X, Z, K, R
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["activestereo"]
+ignore_missing_imports = true
+disallow_untyped_defs = true
