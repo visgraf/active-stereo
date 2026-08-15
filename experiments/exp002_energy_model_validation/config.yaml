@@ -1,0 +1,30 @@
+defaults: [../../configs/default.yaml]
+experiment:
+  tag: exp002
+  issue: 1
+  hypothesis: >
+    The migrated DisparityEncoder reproduces the canonical energy-model
+    signature: the peak-response channel tracks true disparity and is
+    invariant to interocular contrast gain. This is the mechanistic property
+    that distinguishes a true quadrature energy model (even/odd pairs,
+    squared and summed) from a shift-and-correlate encoder wearing the same
+    Protocol interface.
+  acceptance: >
+    Peak-response channel within +/-1 bank-step of d0 for >=95% of valid
+    pixels at gain=1.0, AND mean peak-channel drift <=0.5 px across the full
+    gain sweep, both held on the median over 5 seeds.
+
+encoding:
+  bank:
+    center: 8       # px -- matches the stimulus disparity below
+    half_width: 8   # px
+    step: 1.0       # px per channel -> K = 17 channels
+  frequency: 0.2618  # rad/px = 2*pi/24; frequency * bank_width(16) = 4.19 < 2*pi, no aliasing
+  sigma: 6.0         # px, Gaussian envelope half-width
+  stimulus:
+    shape: [64, 96]
+    disparity: 8
+    noise: 0.01
+  gain_sweep: [0.5, 0.75, 1.0, 1.25, 1.5]   # applied to the right image only
+
+seeds: [0, 1, 2, 3, 4]

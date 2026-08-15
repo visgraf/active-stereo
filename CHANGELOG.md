@@ -21,6 +21,10 @@ Tags mark milestones and submissions, so the paper can cite a fixed state.
   penalty resolution-dependent at the 3% level
 
 ### Migration status
-- `encoding`: Protocol only; energy model not yet migrated
+- `encoding`: `GaborEnergyEncoder` (position-shift quadrature energy model)
+  implemented and Protocol-conformant; not yet wired to L3. exp002 validated
+  exact gain-invariance of the peak channel; per-pixel peak precision fell
+  short of its ±1px/95% threshold and is under investigation (see
+  experiments/exp002_energy_model_validation/findings.md)
 - `inference`: block matching and SGBM; MRF belief propagation pending
 - `scripts`: Blender render scripts pending
