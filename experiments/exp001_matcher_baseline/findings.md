@@ -1,6 +1,6 @@
 # exp001 — Block matching vs SGBM under foveal confinement
 
-**Issue:** #1
+**Issue:** none filed (this reference predates real issue tracking; #1 was later filed for exp002)
 **Status:** scaffolded, not yet run on a real scene
 
 ## Hypothesis

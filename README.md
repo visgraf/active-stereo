@@ -100,7 +100,8 @@ autonomy ladder. Four custom commands live in `.claude/commands/`:
 
 ## Status
 
-Scaffold complete; 42 tests green. Migration from the prototype is in progress —
-`encoding` is a Protocol awaiting its energy-model implementation, and `inference`
+Scaffold complete; 50 tests green. Migration from the prototype is in progress —
+`encoding` now has a `GaborEnergyEncoder` (see exp002/findings.md: gain
+invariance validated, per-pixel precision under investigation), and `inference`
 awaits MRF belief propagation. See
 [`docs/lab-notebook/`](docs/lab-notebook/) for the running narrative.
