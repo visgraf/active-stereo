@@ -1,0 +1,11 @@
+{
+  "_comment": "JSON, not YAML: Blender's bundled Python has no PyYAML. Consumed by scripts/render_stereo.py.",
+  "resolution": [640, 480],
+  "lens_mm": 35.0,
+  "sensor_width_mm": 36.0,
+  "interocular": 0.064,
+  "convergence": 2.5,
+  "samples": 128,
+  "engine": "CYCLES",
+  "procedural": true
+}

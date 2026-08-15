@@ -16,3 +16,6 @@ Template: [`0000-template.md`](0000-template.md).
 | [0003](0003-foveal-confinement-linearization-error.md) | Foveal confinement via linearisation remainder | Accepted | 2026-08-15 |
 | [0004](0004-layer-module-boundaries.md) | Six layers as module boundaries | Accepted | 2026-08-15 |
 | [0005](0005-uncertainty-first-class.md) | Estimators return variance, not point estimates | Accepted | 2026-08-15 |
+| [0006](0006-scenes-as-a-separate-package.md) | Stimulus generation lives beside L1 | Accepted | 2026-08-15 |
+| [0007](0007-offaxis-not-toein.md) | Off-axis frusta; L1 is not the Vieth–Müller model | Accepted | 2026-08-15 |
+| [0008](0008-python-floor-312.md) | Python floor 3.12; mypy is a blocking gate | Accepted | 2026-08-15 |

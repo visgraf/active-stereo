@@ -42,7 +42,10 @@ class SGBMMatcher:
 
         lo = _to_uint8(left)
         ro = _to_uint8(right)
-        matcher = cv2.StereoSGBM_create(
+        # StereoSGBM.create, not the module-level StereoSGBM_create alias: both
+        # exist at runtime, but only the class method appears in OpenCV's bundled
+        # stubs, so this form type-checks without a suppression.
+        matcher = cv2.StereoSGBM.create(
             minDisparity=0,
             numDisparities=self.max_disparity,
             blockSize=self.block_size,

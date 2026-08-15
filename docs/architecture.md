@@ -34,6 +34,29 @@ not separable here.
 | L5 | `control` | `Estimate`, state | vergence command | `VergenceKalman` |
 | L6 | `policy` | `Estimate` | next fixation | `next_fixation` |
 
+## Stimuli
+
+`scenes` sits beside L1 rather than inside it (ADR-0006). L1 is the generative
+model the framework *reasons with*; `scenes` is the ground truth it is *evaluated
+against*.
+
+| Kind | Module | Carries depth in | Use when |
+|---|---|---|---|
+| Random-dot stereogram | `scenes.rds` | disparity only | Proving a depth estimate came from matching |
+| Rendered | `scenes.blender` + `scripts/render_stereo.py` | all cues | Photometric realism, XR-relevant failure modes |
+
+A `StereoStimulus` carries two boolean masks, deliberately separate:
+`matched` (has a right-image correspondent) and `in_frame` (the correspondent
+lands inside the sensor). `occluded = in_frame & ~matched` is the geometric
+quantity; `out_of_frame` is a rig limit. Pooling them makes a smooth, unoccluded
+surface look occluded.
+
+**Caveat on the horopter (ADR-0007).** L1's projection is a shifted-frustum
+(off-axis) model whose zero-disparity locus is a fronto-parallel plane. The
+Vieth–Müller circle in `geometry/horopter.py` is the toed-in, biological horopter.
+They agree near the fixation axis and diverge with eccentricity. Renders use
+off-axis so stimulus and model agree; closing the gap is open work.
+
 ## The three closures
 
 **Scaling closure.** Disparity is dimensionless until L4. No module below L4 may

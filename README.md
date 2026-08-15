@@ -18,6 +18,11 @@ pip install -e ".[dev,cv,viz]"
 pytest -q
 astereo info
 ```
+Run the end-to-end demo (the successor to `active_stereo_demo.py`):
+
+```bash
+python scripts/demo_active_stereo.py --scene disk --matcher sgbm --plot
+```
 
 Run the first experiment:
 
@@ -29,7 +34,7 @@ python -m experiments.exp001_matcher_baseline.run \
 ## Layout
 
 ```
-src/activestereo/   library code only — the six layers plus io, viz, utils
+src/activestereo/   library code only — the six layers, scenes, io, viz, utils
 experiments/        one directory per experiment: config, runner, findings
 tests/              unit/ (contracts) and regression/ (ADR-backed lessons)
 configs/            composable YAML; every run fully specified
@@ -53,6 +58,7 @@ is what keeps a research repo from collapsing into a pile of one-off files.
 | L4 | `scaling` | Metric scaling, MLE cue fusion |
 | L5 | `control` | Vergence estimation, Kalman filtering, stability |
 | L6 | `policy` | Saliency, foveal confinement, gaze policy |
+| — | `scenes` | Stimuli: random-dot stereograms, rendered scenes (ADR-0006) |
 
 See [`docs/architecture.md`](docs/architecture.md).
 
@@ -100,8 +106,12 @@ autonomy ladder. Four custom commands live in `.claude/commands/`:
 
 ## Status
 
-Scaffold complete; 50 tests green. Migration from the prototype is in progress —
-`encoding` now has a `GaborEnergyEncoder` (see exp002/findings.md: gain
-invariance validated, per-pixel precision under investigation), and `inference`
-awaits MRF belief propagation. See
-[`docs/lab-notebook/`](docs/lab-notebook/) for the running narrative.
+63 tests green. Migration from the prototype is in progress — `encoding` is a
+Protocol awaiting its energy-model implementation, and `inference` awaits MRF
+belief propagation.
+
+Two open modelling questions are tracked rather than hidden: L1 models a
+shifted-frustum rig, not the Vieth–Müller horopter it claims
+([ADR-0007](docs/decisions/0007-offaxis-not-toein.md)); and SGBM's variance is a
+constant rather than a posterior width, which makes cross-matcher fusion
+comparisons unfair. See [`docs/lab-notebook/`](docs/lab-notebook/).

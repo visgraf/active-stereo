@@ -39,3 +39,8 @@ paper/main.pdf
 .DS_Store
 .idea/
 .vscode/settings.json
+
+# Emacs
+\#*\#
+.\#*
+*~

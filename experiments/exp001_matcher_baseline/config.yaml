@@ -1,14 +1,16 @@
-defaults: [../../configs/default.yaml]
+defaults: [../../configs/scene/rds_disk.yaml]
 experiment:
   tag: exp001
   hypothesis: >
-    With the ADR-0003 foveal confinement term active, SGBM achieves lower
-    foveal depth error than block matching at equal disparity range. Without
-    the term, the difference is not detectable.
+    With the ADR-0003 foveal confinement term active, SGBM achieves lower foveal
+    depth error than block matching at equal disparity range, and hallucinates
+    less in half-occluded regions. Without the term, the depth-error difference
+    is not detectable.
   acceptance: >
-    Median absolute depth error inside the foveal radius is lower for SGBM by a
-    margin exceeding the seed-to-seed spread across 5 seeds.
+    Median absolute foveal depth error is lower for SGBM by a margin exceeding
+    the seed-to-seed spread across 5 seeds, AND SGBM's hallucination rate in
+    ground-truth occlusions is lower than block matching's.
 matcher:
-  max_disparity: 32
+  max_disparity: 48
   window: 7
 seeds: [0, 1, 2, 3, 4]

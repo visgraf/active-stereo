@@ -11,7 +11,7 @@ import json
 import platform
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +41,7 @@ def git_dirty() -> bool:
 
 def make_run_id(tag: str = "run") -> str:
     """Timestamped, git-pinned identifier, e.g. ``exp001-20260815T142233-a1b2c3d``."""
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     return f"{tag}-{stamp}-{git_sha()}"
 
 
@@ -72,7 +72,7 @@ class RunContext:
             "seed": self.seed,
             "git_sha": git_sha(short=False),
             "git_dirty": git_dirty(),
-            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "created_utc": datetime.now(UTC).isoformat(),
             "python": platform.python_version(),
             "numpy": np.__version__,
             "config": self.config,
