@@ -106,9 +106,10 @@ autonomy ladder. Four custom commands live in `.claude/commands/`:
 
 ## Status
 
-63 tests green. Migration from the prototype is in progress — `encoding` is a
-Protocol awaiting its energy-model implementation, and `inference` awaits MRF
-belief propagation.
+85 tests green. Migration from the prototype is in progress — `encoding` now
+has a `GaborEnergyEncoder` (see [exp002](experiments/exp002_energy_model_validation/findings.md):
+gain invariance validated, per-pixel precision under investigation), and
+`inference` still awaits MRF belief propagation.
 
 Two open modelling questions are tracked rather than hidden: L1 models a
 shifted-frustum rig, not the Vieth–Müller horopter it claims
