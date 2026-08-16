@@ -1,7 +1,7 @@
 .PHONY: install test unit regression lint format types check paper clean
 
 install:
-	pip install -e ".[dev,cv,viz]"
+	pip install -e ".[dev,cv,viz,blender]"
 
 test:
 	pytest -q

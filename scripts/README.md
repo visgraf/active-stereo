@@ -32,12 +32,33 @@ blender --background scene.blend --python scripts/render_stereo.py -- \
 
 The bare `--` separates Blender's arguments from the script's.
 
-Writes `left.png`, `right.png`, `depth_left.exr`, `depth_right.exr`, and
-`rig.json`. Both eyes get a depth pass because a single one cannot express
-half-occlusion, and occlusion is the phenomenon several results turn on.
+Writes `left.exr`, `right.exr` (multi-layer: Combined + Depth) and `rig.json`.
+Both eyes get a depth pass because a single one cannot express half-occlusion,
+and occlusion is the phenomenon several results turn on.
+
+Needs the `blender` extra for reading: `pip install -e ".[blender]"`. OpenCV
+cannot address named EXR layers -- it returns whichever channels come first,
+silently. See ADR-0010.
+
+`--mode compositor` selects the older File Output path. It works on Blender 4.x
+and is broken on 5.2; the default `--mode multilayer` uses the render output
+path, which has been stable for a decade.
 
 Stereo mode is **off-axis**, matching L1 exactly. See ADR-0007 for why toe-in
 would silently corrupt every foveal-confinement result.
+
+### `inspect_exr.py`
+
+Lists the channels and value ranges in a rendered EXR. First thing to run when
+depth looks wrong -- it says what Blender actually wrote rather than leaving you
+to infer it.
+
+```bash
+python scripts/inspect_exr.py /tmp/calib/left.exr
+```
+
+A healthy render shows a `...Depth.Z` (or `.V`) channel whose median is the scene
+distance in metres, and `...Combined.*` channels well away from zero.
 
 ### Calibrate the depth pass once per Blender version
 
