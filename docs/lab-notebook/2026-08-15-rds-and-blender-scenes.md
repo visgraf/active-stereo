@@ -55,6 +55,31 @@ SGBM 9%. SGBM's advantage is that it *declines* better, not that it matches
 better. SGBM's exactly-zero foveal error across five seeds is flagged as
 suspicious in `findings.md` — the disk stimulus is piecewise-constant and too easy.
 
+## Blender path, first working render (Blender 5.2 LTS, Cycles)
+
+Six rounds. Worth recording what the failures actually were, because only two of
+them were Blender's fault:
+
+| Symptom | Cause |
+|---|---|
+| `Scene.node_tree` AttributeError | Blender 5.0 API change (ADR-0009) |
+| `base_path` AttributeError | Blender 5.0 API change |
+| `enum "PNG" not found` | `format.media_type` defaults to MULTI_LAYER_IMAGE |
+| File Output wrote nothing | Unresolved. Abandoned the compositor (ADR-0010) |
+| "Cycles not available" | **Mine.** Static RNA omits add-on engines |
+| Dark, untextured render | **Mine.** Inverted colour ramp; no world |
+| Depth pass "missing" | **Mine.** Reader stopped at EXR part 0 |
+| Beauty pass wrong | **Mine.** Cycles' Noisy Image averaged into Combined |
+
+The last two are the instructive ones. Both would have produced *plausible*
+output -- a photograph-like image, smoothly varying depth -- while being wrong.
+Neither would have been caught by anything downstream. Both are now covered by
+tests against synthetic EXRs in the exact layouts Cycles emits.
+
+First good render: Combined median 0.478, Depth min 0.773 m (front of the nearer
+sphere: centre at 1.0 m, radius 0.25) and median 3.0 m (backdrop). Geometry
+confirmed by two independent numbers.
+
 ## Next
 
 - Rerun exp001 across all four depth maps; report per-stimulus.

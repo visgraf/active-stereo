@@ -17,6 +17,9 @@ dependencies = [
 
 [project.optional-dependencies]
 cv = ["opencv-python-headless>=4.8"]
+# Reading named layers out of Blender's multi-layer EXR. OpenCV cannot do this
+# (it silently returns whichever channels come first). See ADR-0010.
+blender = ["OpenImageIO>=2.5"]
 viz = ["matplotlib>=3.7"]
 dev = [
     "pytest>=7.4",
