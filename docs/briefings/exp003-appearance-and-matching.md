@@ -146,6 +146,47 @@ The faint structure the matcher is chasing is **real shading** — light falling
 across the patch — not noise. The threat is cleared and the finding is stronger
 for it.
 
+## The part we found afterwards: lighting decides everything
+
+The experiment treated lighting as a nuisance variable and averaged over it.
+Breaking it out — same geometry, same materials, only the lamp moves — produced
+the largest effect in the whole study. On a blank wall:
+
+| Lighting | Answers given | Depth error | Trusted |
+|---|---|---|---|
+| flat ambient | 60.8% | **291.9 mm** | 3.9% |
+| directional key | 71.3% | 60.2 mm | 4.3% |
+| **raking grazing** | **98.8%** | **2.7 mm** | 7.1% |
+
+**A raking light rescues a blank wall.** The shading gradient across the uniform
+paint *is* matchable structure, and error falls to 2.7 mm — as good as a genuinely
+textured surface. Textured patches are indifferent to lighting (0.60–0.61 mm in
+all three), so this matters only where there is no albedo texture to fall back on.
+
+This softens the headline above. A uniform surface is not "wrong by 95×" — it is
+wrong by 95× *under the lighting we happened to average over*. A textureless
+surface has no intrinsic difficulty; whether it can be recovered is a property of
+the illumination.
+
+And it sharpens the calibration point. Compare the first and last rows: 3.9% vs
+7.1% trusted, for errors differing by **109×**. Under raking light the matcher is
+right and does not believe itself; under flat light it is wrong and equally
+disbelieving. So what the variance measures is **image contrast, not
+correctness** — precisely what a cost-curvature proxy would do.
+
+| Regime | Answer | Trust | Consequence |
+|---|---|---|---|
+| Textured | right | trusted | works |
+| Blank wall, flat light | wrong | distrusted | safe |
+| Blank wall, raking light | **right** | **distrusted** | safe but wasteful |
+| Half-occluded | fabricated | **trusted** | poisons fusion |
+
+Not pre-registered: this is a breakdown of the same twelve renders along a factor
+the design already balanced, so the permutation control still holds — but it
+carries no falsifier and was found while assembling slides. A confirmatory test
+should sweep lamp elevation continuously instead of comparing three hand-placed
+rigs.
+
 ## What this changes
 
 1. **Build occlusion detection before a texture gate.** The instinct after seeing
