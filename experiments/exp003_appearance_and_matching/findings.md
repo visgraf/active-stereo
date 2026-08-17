@@ -219,6 +219,55 @@ highlights too small to shift one.
 This is hypothesis-generating, not confirmatory. It should be pre-registered and
 re-tested, not cited as support for H2.
 
+### Added after the fact: a large lighting interaction this analysis missed
+
+The runner pools over lighting, because lighting was a nuisance variable to
+average out rather than a factor to test. Breaking it out while preparing the
+slide deck (`slides/exp003_appearance_and_matching/`) found the largest effect in
+the whole experiment. Blank-wall patches, matte, medians over 4 permutations:
+
+| lighting | answered | depth error | trusted | variance (px²) |
+|---|---|---|---|---|
+| flat ambient | 60.8% | **291.88 mm** | 3.9% | 33,398 |
+| directional key | 71.3% | 60.23 mm | 4.3% | 68,166 |
+| **raking grazing** | **98.8%** | **2.68 mm** | 7.1% | 230,156 |
+
+**A raking light rescues a textureless surface.** Error drops from 292 mm to
+2.68 mm — comparable to a genuinely textured patch — because the shading gradient
+across the uniform albedo *is* matchable structure. Well-textured patches are
+indifferent to lighting (0.60–0.61 mm in all three rigs), so this is specific to
+the case with no albedo texture to fall back on.
+
+That also reframes the earlier claim that a uniform surface is "wrong by ~95×".
+It is wrong by ~95× *under the lighting we happened to average over*. The
+honest statement is that a textureless surface has no intrinsic matchability:
+whether it can be recovered at all is a property of the illumination, not of the
+surface.
+
+**And trust does not follow accuracy.** Compare the first and last rows: 3.9% vs
+7.1% trusted — nearly the same — for errors differing by **109×**. Under raking
+light the matcher is accurate and does not believe itself; under flat light it is
+wrong and equally disbelieving. So the reported variance is tracking **image
+contrast, not correctness**, which is exactly what a cost-curvature proxy would
+be expected to do.
+
+That completes the calibration picture, and it is more nuanced than the
+two-regime version above:
+
+| regime | answer | trust | consequence |
+|---|---|---|---|
+| textured | right | trusted | works |
+| blank wall, flat light | wrong | distrusted | safe |
+| blank wall, raking light | **right** | **distrusted** | safe but wasteful |
+| half-occluded | fabricated | **trusted** | poisons fusion |
+
+Two caveats on this section, since it was not pre-registered. It is a breakdown
+of the same 12 renders by a factor the design deliberately balanced, so the
+permutation control still applies and it is not a fishing expedition — but it
+carries no falsifier and was found while looking for something to put on a slide.
+A confirmatory version should sweep lamp elevation continuously rather than
+compare three hand-placed rigs.
+
 ### The texture ladder is effectively two-level, not four
 
 dense (0.193), mid (0.175) and coarse (0.072) are statistically
@@ -242,12 +291,24 @@ ladder geometrically inside [0, 0.07].
    reason than assumed: not because the estimates poison fusion — they do not —
    but because 71% coverage at 5.7% depth error wastes L6 fixations on regions
    that cannot be resolved, which is the ADR-0002 hang in a milder form.
-4. **exp004 candidates,** in the order the evidence now supports: (a) why
+4. **Reported variance is a contrast meter, not a reliability estimate.** The
+   lighting breakdown makes this precise: 3.9% vs 7.1% trusted for errors
+   differing by 109×. ADR-0005 requires estimators to return a variance; it does
+   not require that variance to be *calibrated*, and nothing in the repo has ever
+   checked. Any downstream weighting inherits the miscalibration in both
+   directions — fabricated matches pass, correct ones are discarded.
+5. **A textureless surface has no fixed difficulty.** Whether it can be matched at
+   all is a property of the illumination. Reporting a single number for
+   "performance on low-texture surfaces" is not meaningful without stating the
+   lighting, which has implications for how any XR robustness claim is phrased.
+6. **exp004 candidates,** in the order the evidence now supports: (a) why
    occlusion variance stays low, and whether a cheap left-right consistency term
-   fixes it — this is where the exposure is; (b) specularity re-tested on the p90
-   with sharper, larger highlights; (c) the `GaborEnergyEncoder`'s validated gain
-   invariance (exp002) against differential interocular shading, once L3 can
-   consume a response volume.
+   fixes it — this is where the exposure is; (b) variance calibration measured
+   directly, sweeping lamp elevation continuously, since the three hand-placed
+   rigs here only sample it; (c) specularity re-tested on the p90 with sharper,
+   larger highlights; (d) the `GaborEnergyEncoder`'s validated gain invariance
+   (exp002) against differential interocular shading, once L3 can consume a
+   response volume.
 
 **Nothing was retuned after seeing a failing number.** The material scales, light
 energies, sample count and both falsifier thresholds were fixed before the run;
