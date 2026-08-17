@@ -35,6 +35,7 @@ from numpy.typing import NDArray
 from activestereo.geometry import depth_to_disparity
 from activestereo.scenes.base import StereoStimulus
 from activestereo.types import FloatArray, StereoRig
+from activestereo.utils import boxsum
 
 
 def focal_px_from_blender(resolution_x: int, sensor_width_mm: float, lens_mm: float) -> float:
@@ -314,23 +315,6 @@ def _find_channel(
     return None
 
 
-def _boxsum(a: FloatArray, r: int) -> FloatArray:
-    """Sum over a (2r+1)x(2r+1) window, edge-padded, same shape out.
-
-    Duplicated from ``inference.block`` and ``encoding.energy`` rather than
-    imported, following the precedent those two set: a small private helper each
-    module owns. This is the third copy, which is the point at which it should
-    probably move to ``utils`` -- noted, not done here, because the other two are
-    covered by tests this change has no business touching.
-    """
-    pad = np.pad(a, r, mode="edge")
-    c = np.cumsum(np.cumsum(pad, axis=0), axis=1)
-    c = np.pad(c, ((1, 0), (1, 0)))
-    k = 2 * r + 1
-    H, W = a.shape
-    return c[k : k + H, k : k + W] - c[0:H, k : k + W] - c[k : k + H, 0:W] + c[0:H, 0:W]
-
-
 def albedo_texture_contrast(albedo: FloatArray, window: int = 7) -> FloatArray:
     """Local standard deviation of albedo over a ``window``-sided box.
 
@@ -361,9 +345,9 @@ def albedo_texture_contrast(albedo: FloatArray, window: int = 7) -> FloatArray:
     filled = np.where(valid, albedo, 0.0)
     r = window // 2
 
-    n = _boxsum(valid.astype(float), r)
-    s = _boxsum(filled, r)
-    s2 = _boxsum(filled * filled, r)
+    n = boxsum(valid.astype(float), r)
+    s = boxsum(filled, r)
+    s2 = boxsum(filled * filled, r)
     with np.errstate(invalid="ignore", divide="ignore"):
         mean = s / np.maximum(n, 1.0)
         var = s2 / np.maximum(n, 1.0) - mean * mean
