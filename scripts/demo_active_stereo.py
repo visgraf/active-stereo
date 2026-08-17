@@ -66,7 +66,13 @@ def evaluate(depth: Estimate, stim: StereoStimulus) -> dict[str, float]:
     got = np.isfinite(depth.value)
 
     on_matched = stim.matched & got
-    occluded = ~stim.matched
+    # stim.occluded, not ~stim.matched. A pixel fails to match for two unrelated
+    # reasons -- a nearer surface hid its partner (geometry) or the partner fell
+    # off the sensor (a rig limit) -- and StereoStimulus keeps them separate for
+    # exactly this reason. Pooling them counts every border pixel as a
+    # hallucination, which inflates this number on any wide-field render.
+    # exp001's runner has always done it correctly; this had drifted.
+    occluded = stim.occluded
     return {
         "depth_mae_m": float(np.nanmedian(err[on_matched])) if on_matched.any() else float("nan"),
         "coverage_matched": float((stim.matched & got).sum() / max(stim.matched.sum(), 1)),
@@ -154,18 +160,19 @@ def main() -> int:
     shape = tuple(args.shape)
 
     if args.render is not None:
-        from activestereo.scenes.blender import load_render, rig_from_blender
+        from activestereo.scenes.blender import BlenderRenderScene
 
-        meta = json.loads((args.render / "rig.json").read_text())
-        rig = rig_from_blender(
-            meta["resolution_x"],
-            meta["sensor_width_mm"],
-            meta["lens_mm"],
-            meta["interocular"],
-            meta["convergence_distance"],
-        )
-        stim = load_render(args.render, rig, depth_is_radial=bool(meta.get("depth_is_radial")))
-        scene_name = f"blender:{args.render.name}"
+        # BlenderRenderScene resolves the rig and the depth convention from the
+        # render itself. The previous code did
+        # `depth_is_radial=bool(meta.get("depth_is_radial"))`, and rig.json
+        # writes that field as null because the render script cannot know it --
+        # so "nobody has calibrated this" silently became "planar, definitely".
+        # An uncorrected radial pass is a few percent of peripheral depth error,
+        # which is indistinguishable from an ADR-0003 result.
+        scene = BlenderRenderScene(args.render)
+        rig = scene.rig
+        stim = scene.stimulus()
+        scene_name = scene.name
     else:
         rig = StereoRig(
             baseline=0.064,

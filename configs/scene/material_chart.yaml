@@ -1,0 +1,24 @@
+defaults: [../default.yaml]
+# Experiment-side settings for the Blender material chart. The *render* side is
+# configs/scene/blender_material_chart.json -- JSON because Blender's bundled
+# Python has no PyYAML. The two schemas stay disjoint on purpose; this one never
+# reaches Blender and that one never reaches load_config.
+scene:
+  kind: blender_chart
+  # Written by scripts/render_chart_sweep.py. results/ rather than data/,
+  # which holds pointers and never blobs (CLAUDE.md section 2).
+  stimulus_root: results/stimuli/chart
+  lighting: [ambient, key, grazing]
+  permutations: [0, 1, 2, 3]
+rig:
+  # Not used to build the rig -- BlenderRenderScene reads the true one from each
+  # render's rig.json and refuses a mismatch. Recorded here so the config states
+  # what the renders were made with.
+  note: rig comes from rig.json; convergence 2.5 m, behind the 1.6 m backdrop
+matcher:
+  max_disparity: 48
+  window: 7
+analysis:
+  # Match the texture-contrast window to the matcher window: texture is only
+  # meaningful relative to the support the matcher actually integrates over.
+  texture_window: 7

@@ -1,0 +1,21 @@
+defaults: [../../configs/scene/material_chart.yaml]
+experiment:
+  tag: exp003
+  issue: 4
+  hypothesis: >
+    H1 (texture loss removes evidence): as ground-truth albedo texture contrast
+    falls, coverage falls monotonically while median depth error on answered
+    pixels stays approximately flat -- the matchers decline rather than guess.
+    H2 (specularity supplies false evidence): at matched albedo texture contrast,
+    glossy patches yield higher median depth error than matte at comparable or
+    higher coverage. A textureless region withholds evidence; a highlight
+    fabricates it, and the matcher cannot tell.
+  acceptance: >
+    H1a: coverage monotonically non-increasing across dense > mid > coarse >
+    constant. H1b: median error on answered matched pixels rises by less than 2x
+    from dense to constant albedo. H2a: the glossy-minus-matte error difference
+    at equal texture level exceeds the permutation-to-permutation spread of that
+    difference. H2b: coverage on glossy is not lower than on matte at equal
+    texture level. Twelve renders (3 lighting x 4 permutations) per matcher;
+    statistics are medians over permutations.
+matchers: [block, sgbm]

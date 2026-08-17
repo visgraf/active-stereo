@@ -106,13 +106,19 @@ autonomy ladder. Four custom commands live in `.claude/commands/`:
 
 ## Status
 
-85 tests green. Migration from the prototype is in progress — `encoding` now
+108 tests green. Migration from the prototype is in progress — `encoding` now
 has a `GaborEnergyEncoder` (see [exp002](experiments/exp002_energy_model_validation/findings.md):
 gain invariance validated, per-pixel precision under investigation), and
 `inference` still awaits MRF belief propagation.
 
-Two open modelling questions are tracked rather than hidden: L1 models a
+Stimuli now span both families ADR-0006 argues for: random-dot stereograms, and
+appearance-controlled Blender renders spanning dense texture to constant albedo
+([exp003](experiments/exp003_appearance_and_matching/findings.md)).
+
+Three open modelling questions are tracked rather than hidden: L1 models a
 shifted-frustum rig, not the Vieth–Müller horopter it claims
-([ADR-0007](docs/decisions/0007-offaxis-not-toein.md)); and SGBM's variance is a
+([ADR-0007](docs/decisions/0007-offaxis-not-toein.md)); SGBM's variance is a
 constant rather than a posterior width, which makes cross-matcher fusion
-comparisons unfair. See [`docs/lab-notebook/`](docs/lab-notebook/).
+comparisons unfair; and L3 reports texture loss honestly (637× variance
+inflation) but half-occlusion not at all (5×), so fabricated matches still reach
+L4 at close to full weight. See [`docs/lab-notebook/`](docs/lab-notebook/).

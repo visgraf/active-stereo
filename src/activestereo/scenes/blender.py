@@ -22,7 +22,10 @@ be treated as unvalidated.
 
 from __future__ import annotations
 
+import itertools
+import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -86,9 +89,24 @@ def infer_depth_convention(depth: FloatArray, tolerance: float = 1e-3) -> str:
     """Diagnose a calibration render of a fronto-parallel plane.
 
     Returns ``"planar"`` if depth is constant across the field, ``"radial"`` if it
-    grows toward the corners, or ``"unknown"``. Run this once per Blender version
-    on a flat-wall render and record the answer in the lab notebook; do not carry
-    the assumption between versions.
+    grows toward the corners as a function of image radius alone, or
+    ``"unknown"``. Run this once per Blender version on a flat-wall render and
+    record the answer in the lab notebook; do not carry the assumption between
+    versions.
+
+    **Only meaningful on a fronto-parallel calibration render.** Handed an
+    ordinary scene it used to answer ``"radial"`` with complete confidence, for
+    the wrong reason: any scene with nearer objects toward the middle of frame
+    has depth "growing toward the corners". Acting on that answer applies a
+    spurious radial correction of several percent at the field edge -- which is
+    indistinguishable from an ADR-0003 foveal-confinement result, in the one
+    place the invariants cannot reach. This is the failure shape ADR-0009 calls
+    "introspection can be confidently wrong".
+
+    The guard: a flat wall is **radially symmetric** about the principal point
+    under either convention, so depth must vary *with* image radius and not
+    *around* it. When within-radius spread is comparable to total spread, the
+    input is not a calibration render and the answer is ``"unknown"``.
     """
     finite = np.isfinite(depth)
     if not finite.any():
@@ -96,9 +114,23 @@ def infer_depth_convention(depth: FloatArray, tolerance: float = 1e-3) -> str:
     centre = float(np.nanmedian(depth[depth.shape[0] // 2, :]))
     if centre <= 0:
         return "unknown"
-    spread = float(np.nanmax(depth[finite]) - np.nanmin(depth[finite])) / centre
-    if spread < tolerance:
+    values = depth[finite]
+    total = float(np.max(values) - np.min(values))
+    if total / centre < tolerance:
         return "planar"
+
+    H, W = depth.shape
+    rows, cols = np.indices((H, W))
+    radius = np.hypot(cols - (W - 1) / 2.0, rows - (H - 1) / 2.0)
+    edges = np.linspace(0.0, float(radius.max()), 17)
+    within = [
+        float(np.ptp(depth[sel]))
+        for lo, hi in itertools.pairwise(edges)
+        if (sel := finite & (radius >= lo) & (radius < hi)).sum() >= 8
+    ]
+    if not within or float(np.median(within)) > 0.25 * total:
+        return "unknown"
+
     corner = float(np.nanmean([depth[0, 0], depth[0, -1], depth[-1, 0], depth[-1, -1]]))
     return "radial" if corner > centre else "unknown"
 
@@ -176,14 +208,28 @@ def read_multilayer_exr(path: str | Path) -> dict[str, FloatArray]:
     single-part files with prefixed channel names like ``ViewLayer.Depth.Z``.
     The depth channel letter has been both ``Z`` and ``V``.
 
-    Returns ``"image"`` (grayscale, [0, 1]) and ``"depth"`` (metres, non-hits as
-    ``nan``).
+    Always returns ``"image"`` (grayscale) and ``"depth"`` (metres, non-hits as
+    ``nan``). When the render enabled them, also returns the appearance passes:
+    ``"albedo"`` (Diffuse Color -- surface colour with lighting removed),
+    ``"glossy"`` (Glossy Direct -- specular energy alone) and
+    ``"material_index"``. Callers must treat those three as optional.
+
+    Note that ``"image"`` is **linear radiance, not clipped to [0, 1]** as
+    ``StereoStimulus`` documents for synthetic stimuli. Specular highlights
+    legitimately exceed 1; clipping them here would destroy exactly the
+    structure a gloss experiment is measuring.
+
+    Blender writes these layer names with spaces -- ``ViewLayer.Diffuse Color.R``,
+    ``ViewLayer.Glossy Direct.R``, ``ViewLayer.Material Index.X`` -- not the
+    ``DiffCol``/``GlossDir``/``IndexMA`` abbreviations used elsewhere in its
+    codebase. Verified against 5.2 with ``scripts/inspect_exr.py``.
     """
     path = Path(path)
     parts = _read_exr_parts(path)
 
     depth: FloatArray | None = None
     image: FloatArray | None = None
+    extras: dict[str, FloatArray] = {}
 
     for part_name, channels, data in parts:
         qualified = [f"{part_name}.{c}" if part_name else c for c in channels]
@@ -194,6 +240,17 @@ def read_multilayer_exr(path: str | Path) -> dict[str, FloatArray]:
                 idx = 0
             if idx is not None:
                 depth = data[..., idx].astype(float)
+
+        for key, token in (("albedo", "diffuse color"), ("glossy", "glossy direct")):
+            if key not in extras:
+                rgb = _rgb_channels(qualified, token)
+                if rgb:
+                    extras[key] = data[..., rgb].mean(axis=2).astype(float)
+
+        if "material_index" not in extras:
+            idx = _find_channel(qualified, ("material index", "indexma"))
+            if idx is not None:
+                extras["material_index"] = data[..., idx].astype(float)
 
         if image is None:
             # Cycles emits auxiliary colour passes alongside the beauty pass --
@@ -222,7 +279,23 @@ def read_multilayer_exr(path: str | Path) -> dict[str, FloatArray]:
 
     depth = np.array(depth, dtype=float, copy=True)
     depth[~np.isfinite(depth) | (depth > 1e6) | (depth <= 0)] = np.nan
-    return {"image": image, "depth": depth}
+    return {"image": image, "depth": depth, **extras}
+
+
+def _rgb_channels(names: Sequence[str], token: str) -> list[int]:
+    """Indices of the R/G/B channels belonging to the pass named ``token``.
+
+    Matched on the qualified name so that ``Diffuse Color`` is not confused with
+    ``Combined`` -- both are colour passes with identical channel letters, and
+    picking the wrong one substitutes a shading-free albedo map for the rendered
+    image, or vice versa. That is the same class of silent substitution ADR-0010
+    was written about.
+    """
+    return [
+        i
+        for i, name in enumerate(names)
+        if token in name.lower() and name.lower().rsplit(".", 1)[-1] in ("r", "g", "b")
+    ]
 
 
 def _find_channel(
@@ -239,6 +312,304 @@ def _find_channel(
         if any(name.endswith(suffix) for suffix in suffixes):
             return i
     return None
+
+
+def _boxsum(a: FloatArray, r: int) -> FloatArray:
+    """Sum over a (2r+1)x(2r+1) window, edge-padded, same shape out.
+
+    Duplicated from ``inference.block`` and ``encoding.energy`` rather than
+    imported, following the precedent those two set: a small private helper each
+    module owns. This is the third copy, which is the point at which it should
+    probably move to ``utils`` -- noted, not done here, because the other two are
+    covered by tests this change has no business touching.
+    """
+    pad = np.pad(a, r, mode="edge")
+    c = np.cumsum(np.cumsum(pad, axis=0), axis=1)
+    c = np.pad(c, ((1, 0), (1, 0)))
+    k = 2 * r + 1
+    H, W = a.shape
+    return c[k : k + H, k : k + W] - c[0:H, k : k + W] - c[k : k + H, 0:W] + c[0:H, 0:W]
+
+
+def albedo_texture_contrast(albedo: FloatArray, window: int = 7) -> FloatArray:
+    """Local standard deviation of albedo over a ``window``-sided box.
+
+    This is the honest measure of "how much matching evidence does this pixel
+    have". Measuring texture from the *rendered* image instead would conflate
+    albedo variation with shading gradient: under a raking light a perfectly
+    constant-albedo surface carries a strong intensity ramp, which looks like
+    texture to any statistic computed on the beauty pass but supports matching
+    far more weakly.
+
+    Invalid pixels are masked before mixing, per ADR-0002 -- a window straddling
+    the frame edge or a non-hit must not average `nan` in as though it were data.
+
+    Parameters
+    ----------
+    albedo : (H, W) shading-free surface colour, from the Diffuse Color pass.
+    window : odd side length in pixels. Match it to the matcher's own window;
+        texture contrast is only meaningful relative to the support the matcher
+        actually integrates over.
+
+    Returns
+    -------
+    (H, W) standard deviation in albedo units, ``nan`` where support is too thin.
+    """
+    if window % 2 == 0:
+        raise ValueError(f"window must be odd, got {window}")
+    valid = np.isfinite(albedo)
+    filled = np.where(valid, albedo, 0.0)
+    r = window // 2
+
+    n = _boxsum(valid.astype(float), r)
+    s = _boxsum(filled, r)
+    s2 = _boxsum(filled * filled, r)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mean = s / np.maximum(n, 1.0)
+        var = s2 / np.maximum(n, 1.0) - mean * mean
+        # Catmull of floating-point error: a genuinely uniform patch can land a
+        # hair below zero here, and sqrt of that is nan -- which would read as
+        # "no support" rather than "no texture", inverting the meaning.
+        out = np.sqrt(np.maximum(var, 0.0))
+    return np.where(n > 0.5 * (2 * r + 1) ** 2, out, np.nan)
+
+
+@dataclass(frozen=True)
+class AppearanceGroundTruth:
+    """Per-pixel surface appearance, straight from the renderer.
+
+    Deliberately a sidecar rather than extra fields on
+    :class:`~activestereo.scenes.base.StereoStimulus`: that contract is frozen
+    and shared with RDS stimuli, which have no albedo, no specular component and
+    no materials. Appearance is a property of rendered scenes only.
+
+    Attributes
+    ----------
+    albedo : (H, W) surface colour with lighting removed (Diffuse Color pass).
+    texture_contrast : (H, W) local albedo std -- see :func:`albedo_texture_contrast`.
+    glossy_left, glossy_right : (H, W) specular energy alone (Glossy Direct),
+        per eye, each in its own image frame.
+    material_index : (H, W) integer material id, the exact condition label.
+    """
+
+    albedo: FloatArray
+    texture_contrast: FloatArray
+    glossy_left: FloatArray
+    glossy_right: FloatArray
+    material_index: NDArray[np.int_]
+
+    def specular_mismatch(self, disparity: FloatArray) -> FloatArray:
+        """Interocular specular disagreement at *corresponding* pixels, in [0, 1].
+
+        This is the brightness-constancy violation, measured rather than assumed.
+        A diffuse surface radiates equally toward both eyes, so its glossy energy
+        matches after warping and this is ~0. A specular highlight is generated
+        at a *different scene point* for each eye, so it does not survive the
+        warp and this approaches 1.
+
+        That distinction is the whole reason specularity is worse for stereo than
+        texture loss: a textureless region withholds evidence, while a highlight
+        supplies evidence for a correspondence that does not exist. ``BlockMatcher``
+        assumes brightness constancy unconditionally (its cost is a raw SSD), so it
+        has no way to notice.
+
+        Returns ``nan`` where the correspondent falls outside the right image.
+        """
+        H, W = self.glossy_left.shape
+        rows, cols = np.indices((H, W))
+        target = cols - np.rint(np.nan_to_num(disparity, nan=0.0)).astype(int)
+        ok = (target >= 0) & (target < W) & np.isfinite(disparity)
+
+        warped = np.full((H, W), np.nan)
+        warped[ok] = self.glossy_right[rows[ok], target[ok]]
+        left = self.glossy_left
+        with np.errstate(invalid="ignore", divide="ignore"):
+            # Normalised so this is a *fraction* disagreeing rather than an
+            # absolute radiance difference, which would simply track brightness.
+            return np.abs(left - warped) / (left + warped + 1e-6)
+
+
+class BlenderRenderScene:
+    """A rendered directory, presented as a :class:`Scene`.
+
+    Lets a render flow through anything that already consumes a ``Scene`` --
+    ``exp001``'s runner, the integration tests -- without those learning anything
+    about EXR layouts.
+
+    Two places where this stretches the ``Scene`` contract, both deliberate and
+    neither silent:
+
+    **It ignores ``rng``.** The protocol promises determinism *given* an injected
+    generator so that a result pins to a seed. A pre-baked render is stronger than
+    that: it is the same pixels every time, whatever the seed. The seed that
+    mattered was Cycles' sampling seed, and it was fixed when the file was written.
+
+    **It refuses a mismatched ``rig``.** ``render(rig, rng)`` takes a rig, but the
+    geometry here was fixed at render time and is recorded in ``rig.json``. Quietly
+    accepting a different one would rescale every depth in the stimulus by the
+    ratio of focal lengths and report it as ground truth, so it raises instead.
+    """
+
+    def __init__(
+        self,
+        directory: str | Path,
+        depth_is_radial: bool | None = None,
+        name: str | None = None,
+    ) -> None:
+        self.directory = Path(directory)
+        meta_path = self.directory / "rig.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(
+                f"missing {meta_path}. A render without its intrinsics cannot be "
+                "turned into a stimulus: focal length and baseline set the scale "
+                "of every disparity in it."
+            )
+        self.meta = json.loads(meta_path.read_text())
+        chart_path = self.directory / "chart.json"
+        self.chart = json.loads(chart_path.read_text()) if chart_path.exists() else None
+        self._name = name or f"blender_{self.directory.name}"
+        self._rig = rig_from_blender(
+            self.meta["resolution_x"],
+            self.meta["sensor_width_mm"],
+            self.meta["lens_mm"],
+            self.meta["interocular"],
+            self.meta["convergence_distance"],
+        )
+        self._depth_is_radial = depth_is_radial
+        self._layers: dict[str, dict[str, FloatArray]] = {}
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def rig(self) -> StereoRig:
+        """The rig this render was actually made with."""
+        return self._rig
+
+    def _eye(self, which: str) -> dict[str, FloatArray]:
+        if which not in self._layers:
+            path = self.directory / f"{which}.exr"
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"missing {path}. Both eyes are required: a single depth pass "
+                    "cannot express half-occlusion."
+                )
+            self._layers[which] = read_multilayer_exr(path)
+        return self._layers[which]
+
+    def depth_is_radial(self) -> bool:
+        """Resolve the depth convention, measuring it where that is possible.
+
+        Precedence: an explicit constructor argument, then ``rig.json``, then --
+        for a material-chart render only -- direct measurement against the known
+        fronto-parallel backdrop. Raises rather than guessing.
+
+        The guessing is what this replaces. ``rig.json`` writes
+        ``depth_is_radial: null`` because the render script genuinely cannot tell,
+        and the previous caller did ``bool(meta.get("depth_is_radial"))``, which
+        turns "nobody has checked" into "planar, definitely" without a word. An
+        uncorrected radial pass looks like a few percent of peripheral depth
+        error -- exactly the signature of an ADR-0003 modelling result.
+        """
+        if self._depth_is_radial is not None:
+            return self._depth_is_radial
+        recorded = self.meta.get("depth_is_radial")
+        if recorded is not None:
+            self._depth_is_radial = bool(recorded)
+            return self._depth_is_radial
+
+        if self.chart is not None:
+            depth = self._eye("left")["depth"]
+            index = self._eye("left").get("material_index")
+            if index is not None:
+                flat = np.where(np.rint(index) == self.chart["index_backdrop"], depth, np.nan)
+                verdict = infer_depth_convention(flat)
+                if verdict in ("planar", "radial"):
+                    self._depth_is_radial = verdict == "radial"
+                    return self._depth_is_radial
+
+        raise ValueError(
+            f"depth convention for {self.directory} is unknown.\n"
+            "Blender's depth pass is radial or planar depending on version and "
+            "engine, and an uncorrected radial pass is indistinguishable from a "
+            "few percent of peripheral modelling error.\n"
+            "Render a fronto-parallel wall, run infer_depth_convention on it, and "
+            "record the answer as 'depth_is_radial' in rig.json -- or pass it "
+            "explicitly to BlenderRenderScene."
+        )
+
+    def render(self, rig: StereoRig, rng: np.random.Generator | None = None) -> StereoStimulus:
+        """Return the stimulus. ``rng`` is unused; ``rig`` must match the render."""
+        self._check_rig(rig)
+        return self.stimulus()
+
+    def _check_rig(self, rig: StereoRig) -> None:
+        mine = self._rig
+        for field, got, want in (
+            ("focal_px", rig.focal_px, mine.focal_px),
+            ("baseline", rig.baseline, mine.baseline),
+            ("vergence", rig.vergence, mine.vergence),
+        ):
+            if not np.isclose(got, want, rtol=1e-6, atol=1e-9):
+                raise ValueError(
+                    f"rig mismatch on {field}: caller passed {got!r}, but this "
+                    f"render was made with {want!r} (from {self.directory}/rig.json).\n"
+                    "Scaling a rendered disparity field with the wrong rig produces "
+                    "metric depth that is wrong by a constant factor and looks "
+                    "entirely plausible. Use BlenderRenderScene.rig."
+                )
+
+    def stimulus(self) -> StereoStimulus:
+        """The stereo pair with ground-truth depth, disparity and occlusion."""
+        radial = self.depth_is_radial()
+        left, right = self._eye("left"), self._eye("right")
+
+        depth_left = left["depth"]
+        depth_right = right["depth"]
+        if radial:
+            depth_left = radial_to_planar(depth_left, self._rig.focal_px)
+            depth_right = radial_to_planar(depth_right, self._rig.focal_px)
+
+        return StereoStimulus(
+            left=left["image"],
+            right=right["image"],
+            depth=depth_left,
+            disparity=depth_to_disparity(depth_left, self._rig),
+            matched=cross_check_occlusion(depth_left, depth_right, self._rig),
+            in_frame=_in_frame(depth_left, self._rig),
+            rig=self._rig,
+        )
+
+    def appearance(self, window: int = 7) -> AppearanceGroundTruth:
+        """Per-pixel appearance ground truth. Requires the render to have the passes."""
+        left, right = self._eye("left"), self._eye("right")
+        missing = [k for k in ("albedo", "glossy", "material_index") if k not in left]
+        if missing:
+            raise KeyError(
+                f"{self.directory} has no {missing} pass. Re-render with "
+                "--scene material-chart, which enables diffuse_color, "
+                "glossy_direct and material_index. Without them, 'how textured is "
+                "this pixel' can only be guessed from the beauty pass, which "
+                "confuses albedo texture with shading gradient."
+            )
+        albedo = left["albedo"]
+        return AppearanceGroundTruth(
+            albedo=albedo,
+            texture_contrast=albedo_texture_contrast(albedo, window=window),
+            glossy_left=left["glossy"],
+            glossy_right=right["glossy"],
+            material_index=np.rint(left["material_index"]).astype(int),
+        )
+
+    def conditions(self) -> dict[int, dict[str, Any]]:
+        """Material index -> its condition, from ``chart.json``."""
+        if self.chart is None:
+            raise FileNotFoundError(
+                f"no chart.json in {self.directory}; material_index has no labels. "
+                "Only --scene material-chart writes one."
+            )
+        return {m["material_index"]: m for m in self.chart["materials"]}
 
 
 def load_render(

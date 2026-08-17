@@ -1,0 +1,15 @@
+{
+  "_comment": "JSON, not YAML: Blender's bundled Python has no PyYAML. Consumed by scripts/render_stereo.py, NOT by load_config. See configs/scene/material_chart.yaml for the experiment-side settings.",
+  "_convergence": "2.5 m sits behind the 1.6 m backdrop. A fixation plane inside the scene gives disparity 0 there, which the matcher discards as a search-range endpoint; render_stereo.py refuses such a value outright.",
+  "_samples": "512 with denoising off. Denoising would smooth the beauty pass and supply spatial structure to exactly the low-texture patches under test, so noise is reduced by sampling instead.",
+  "resolution": [640, 480],
+  "lens_mm": 35.0,
+  "sensor_width_mm": 36.0,
+  "interocular": 0.064,
+  "convergence": 2.5,
+  "samples": 512,
+  "engine": "CYCLES",
+  "scene": "material-chart",
+  "lighting": "key",
+  "permutation": 0
+}

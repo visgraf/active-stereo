@@ -63,6 +63,27 @@ def parse_args(argv):
     p.add_argument("--engine", default="CYCLES", help="CYCLES, BLENDER_EEVEE, ...")
     p.add_argument("--procedural", action="store_true", help="build a test scene")
     p.add_argument(
+        "--scene",
+        default="flat-emissive",
+        choices=["flat-emissive", "material-chart"],
+        help="flat-emissive: the dense-texture pipeline control (default, what "
+        "--procedural has always built). material-chart: lit Principled "
+        "materials spanning dense texture to constant albedo, matte to glossy.",
+    )
+    p.add_argument(
+        "--lighting",
+        default="key",
+        choices=["ambient", "key", "grazing"],
+        help="material-chart only: procedural lighting rig",
+    )
+    p.add_argument(
+        "--permutation",
+        type=int,
+        default=0,
+        help="material-chart only: cyclic shift of the material-to-position "
+        "assignment, so texture level is not confounded with eccentricity",
+    )
+    p.add_argument(
         "--mode",
         default="multilayer",
         choices=["multilayer", "compositor"],
@@ -151,6 +172,315 @@ def build_procedural_scene():
         obj = bpy.context.active_object
         obj.name = f"object_{i}"
         obj.data.materials.append(noise_material(f"object_noise_{i}", scale=90.0))
+
+
+# --- Material chart -------------------------------------------------------
+#
+# The appearance ladder. Each row is one material in the factorial:
+# (label, noise scale, noise detail, roughness). ``scale is None`` means a
+# perfectly constant albedo -- the textureless end of the ladder.
+#
+# Two knobs move together along the texture axis (scale and detail) because the
+# quantity that actually matters is *albedo contrast inside the matcher's
+# window*, which is measured from the DiffCol pass rather than inferred from
+# these numbers. The knobs exist only to produce a spread of that measured
+# quantity; do not read them as the independent variable.
+#
+# Scale is in *generated* texture coordinates, i.e. cells across the object's
+# bounding box -- not world units and not pixels. A patch is ~106 px wide, so
+# the rendered period is roughly 106/scale pixels. Scale 90 was tried first and
+# is wrong: it gives a ~1.2 px period, below the pixel Nyquist, which Cycles
+# antialiases away and which therefore renders *smoother* than a coarser
+# setting. The measured albedo ladder was non-monotonic as a result. These
+# values give periods of roughly 3, 11 and 35 px against a 7 px matcher window,
+# and were confirmed monotonic by measurement.
+CHART_MATERIALS = [
+    ("dense_matte", 30.0, 3.0, 1.00),
+    ("mid_matte", 10.0, 2.0, 1.00),
+    ("coarse_matte", 3.0, 1.0, 1.00),
+    ("none_matte", None, None, 1.00),
+    ("dense_glossy", 30.0, 3.0, 0.15),
+    ("mid_glossy", 10.0, 2.0, 0.15),
+    ("coarse_glossy", 3.0, 1.0, 0.15),
+    ("none_glossy", None, None, 0.15),
+]
+
+# Metres. Depths are inherited from src/activestereo/scenes/depthmaps.py: with
+# the default rig (35 mm lens, 36 mm sensor, 640 px => f ~ 622 px, 64 mm
+# baseline, convergence 2.5 m) these give disparities of ~22 px (patches) and
+# ~9 px (backdrop) -- strictly inside a 48 px search range, and neither at zero.
+# A surface at the fixation plane has disparity 0, which a matcher correctly
+# discards wholesale as a search-range endpoint.
+PATCH_DEPTH = 1.05
+BACKDROP_DEPTH = 1.60
+CURVED_DEPTH = 1.15
+
+PATCH_COLS = (-0.36, -0.12, 0.12, 0.36)
+PATCH_ROWS = (0.22, 0.02)
+PATCH_W, PATCH_H = 0.18, 0.16
+
+# Pass indices. Patches take 1..8 so that material_index doubles as the
+# condition label; fixed geometry is numbered out of the way.
+INDEX_BACKDROP = 20
+INDEX_SPHERE = 21
+INDEX_CYLINDER = 22
+
+
+def check_fixation_clears_scene(convergence, near, far, margin=0.15):
+    """Refuse a convergence distance that lands inside the scene.
+
+    A surface at the fixation plane has disparity exactly 0, which is the
+    endpoint of the matcher's search range and is correctly discarded wholesale
+    -- so a scene straddling the fixation plane silently loses its middle
+    depths, and the sign of disparity flips across it. This project has already
+    paid for the lesson once: the first demo run recovered 13% of matched pixels
+    because the background sat exactly at the fixation distance
+    (docs/lab-notebook/2026-08-15-rds-and-blender-scenes.md), and it is written
+    down again in src/activestereo/scenes/depthmaps.py.
+
+    Nothing enforced it, so the default --convergence of 1.4 m put the plane
+    between the chart's patches (1.05 m) and its backdrop (1.6 m) on the first
+    real render. Cheap check, expensive omission.
+    """
+    if convergence >= far + margin:
+        return
+    raise SystemExit(
+        f"--convergence {convergence} m is not behind the scene, which spans "
+        f"{near}-{far} m.\n"
+        "A surface at the fixation plane has disparity 0, which the matcher "
+        "discards as a search-range endpoint; a scene straddling it also flips "
+        "the sign of disparity partway across the image.\n"
+        f"Put the fixation plane behind everything: --convergence {far + margin:.1f} "
+        "or greater."
+    )
+
+
+def _clear_nodes(node_tree):
+    for node in list(node_tree.nodes):
+        node_tree.nodes.remove(node)
+
+
+def _principled_material(name, scale, detail, roughness, index):
+    """A lit Principled material at one rung of the appearance ladder.
+
+    Unlike ``build_procedural_scene``'s emissive materials, these are *shaded*:
+    their appearance depends on the lighting rig, which is the whole point. A
+    noise texture drives Base Color through a linear ramp (smooth mottling, not
+    the binary black/white the emissive target uses) so the surfaces look like
+    plausible matte or glossy paint rather than a test pattern.
+
+    ``metallic`` stays 0 and there is no transmission: Blender's depth pass at a
+    refractive surface records the glass rather than what is seen through it,
+    which would silently invalidate ``cross_check_occlusion``'s ground truth.
+    """
+    mat = bpy.data.materials.new(name)
+    if getattr(mat, "node_tree", None) is None:
+        mat.use_nodes = True
+    nt = mat.node_tree
+    _clear_nodes(nt)
+
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = 0.0
+    # Renamed in 4.x. Older builds spell it "Specular"; ADR-0009 -- probe the
+    # socket rather than assume which release this is.
+    for spec in ("Specular IOR Level", "Specular"):
+        if spec in bsdf.inputs:
+            bsdf.inputs[spec].default_value = 0.5
+            break
+
+    if scale is None:
+        bsdf.inputs["Base Color"].default_value = (0.5, 0.5, 0.5, 1.0)
+    else:
+        tex = nt.nodes.new("ShaderNodeTexNoise")
+        tex.inputs["Scale"].default_value = scale
+        tex.inputs["Detail"].default_value = detail
+        ramp = nt.nodes.new("ShaderNodeValToRGB")
+        ramp.color_ramp.interpolation = "LINEAR"
+        # Stretch the noise's mid-range across the full albedo range: a raw
+        # noise Fac is clustered near 0.5 and would give every "textured" rung
+        # nearly the same low contrast, collapsing the ladder.
+        ramp.color_ramp.elements[0].position = 0.35
+        ramp.color_ramp.elements[1].position = 0.65
+        nt.links.new(tex.outputs["Fac"], ramp.inputs["Fac"])
+        nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+
+    nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+    mat.pass_index = index
+    return mat
+
+
+def _aim(obj, target=(0.0, 1.2, 0.0)):
+    """Point an object's -Z axis at ``target`` (Blender's lamp convention)."""
+    from mathutils import Vector
+
+    direction = Vector(target) - obj.location
+    obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+
+
+def _area_light(name, location, energy, size, target=(0.0, 1.2, 0.0)):
+    data = bpy.data.lights.new(name, type="AREA")
+    data.energy = energy
+    data.size = size
+    obj = bpy.data.objects.new(name, data)
+    bpy.context.collection.objects.link(obj)
+    obj.location = location
+    _aim(obj, target)
+    return obj
+
+
+def setup_lighting(kind):
+    """Install one of three procedural lighting rigs.
+
+    All procedural -- a Sky texture and area lamps, no HDRI or texture assets,
+    because ``data/`` holds pointers and never blobs (CLAUDE.md section 2).
+
+    The three rigs are chosen to separate *shading* from *albedo*: a textureless
+    surface is uniform under ``ambient`` but carries a strong intensity gradient
+    under ``grazing``, and that gradient is itself a weak matching cue. Without
+    varying illumination there is no way to tell the two apart in the results.
+    """
+    world = bpy.data.worlds.new("world")
+    if getattr(world, "node_tree", None) is None:
+        world.use_nodes = True
+    nt = world.node_tree
+    background = nt.nodes["Background"]
+    bpy.context.scene.world = world
+
+    # Energies are calibrated so the *diffuse* body of the image lands inside
+    # [0, 1], matching StereoStimulus's documented intensity range. Specular
+    # highlights deliberately exceed it: these are linear radiance values, and
+    # clipping them would destroy exactly the structure the gloss axis is meant
+    # to probe. Retune by rendering and measuring, not by eye -- the numbers
+    # below were measured, not guessed.
+    if kind == "ambient":
+        # Bright uniform sky, no lamps: shading is almost flat, so albedo is
+        # very nearly the only source of image structure.
+        sky = nt.nodes.new("ShaderNodeTexSky")
+        if hasattr(sky, "sky_type"):
+            sky.sky_type = "NISHITA" if "NISHITA" in _enum_ids(sky, "sky_type") else "PREETHAM"
+        nt.links.new(sky.outputs["Color"], background.inputs["Color"])
+        background.inputs["Strength"].default_value = 1.05
+    elif kind == "key":
+        # Dim ambient plus a strong front-upper-left key: hard cast shadows and
+        # pronounced shading, the ordinary studio case.
+        background.inputs["Color"].default_value = (0.05, 0.06, 0.08, 1.0)
+        background.inputs["Strength"].default_value = 0.5
+        _area_light("key", (-1.2, -0.4, 1.2), energy=60.0, size=0.6)
+        _area_light("fill", (1.0, -0.6, 0.2), energy=10.0, size=1.2)
+    elif kind == "grazing":
+        # A lamp well off-axis, raking across the patches to put a strong
+        # intensity gradient on a *constant-albedo* surface -- the case that is
+        # genuinely confusable with texture.
+        #
+        # Placed in *front* of the patch plane, not beside it. The first attempt
+        # sat at (1.6, 0.85, 0.15), near the backdrop and nearly in the patch
+        # plane: true grazing incidence, and useless. It blew the backdrop to
+        # saturated white (destroying the texture that makes the backdrop a
+        # usable reference) while crushing the patches to near-black, so the
+        # condition measured underexposure rather than shading. Sitting forward
+        # at y=0.35 puts the lamp 0.70 m from the patches and 1.25 m from the
+        # backdrop, so inverse-square alone dims the backdrop ~3.2x.
+        background.inputs["Color"].default_value = (0.04, 0.04, 0.05, 1.0)
+        background.inputs["Strength"].default_value = 0.5
+        _area_light("grazing", (1.1, 0.35, 0.35), energy=30.0, size=0.4, target=(0.0, 1.05, 0.0))
+    else:
+        raise ValueError(f"unknown lighting rig {kind!r}")
+
+
+def _enum_ids(owner, prop):
+    try:
+        return [i.identifier for i in owner.bl_rna.properties[prop].enum_items]
+    except Exception:
+        return []
+
+
+def build_material_chart_scene(permutation=0, lighting="key"):
+    """Fixed geometry; only surface appearance and lighting change.
+
+    This is the stimulus ``build_procedural_scene`` deliberately is not. That one
+    guarantees dense texture everywhere so the pipeline can be tested; this one
+    spans dense texture down to perfectly constant albedo, and matte through
+    glossy, so the *failure* modes can be measured.
+
+    The eight patches are **coplanar** at ``PATCH_DEPTH``. That is the crux of
+    the design: every patch has identical geometry, identical disparity and an
+    identical half-occlusion band against the backdrop, so any difference in
+    matcher performance between patches is attributable to appearance alone.
+    Ground-truth depth is bit-identical across the whole condition set.
+
+    ``permutation`` cyclically shifts the material-to-position assignment. Fixing
+    it would confound texture level with eccentricity -- the variable ADR-0003
+    makes the whole pipeline sensitive to. Sweeping it and pooling averages that
+    out. The step is 2 so successive permutations move a material across both
+    rows rather than sliding it along one.
+
+    Returns the chart manifest: material index -> its condition.
+    """
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    setup_lighting(lighting)
+
+    def add_plane(name, w, h, location, material):
+        bpy.ops.mesh.primitive_plane_add(size=1.0, location=location, rotation=(1.5708, 0, 0))
+        obj = bpy.context.active_object
+        obj.name = name
+        obj.scale = (w, h, 1.0)
+        obj.data.materials.append(material)
+        return obj
+
+    # A well-textured backdrop, held fixed: if the backdrop were itself a
+    # failure region it would contaminate every patch's occlusion statistics.
+    add_plane(
+        "backdrop",
+        4.0,
+        4.0,
+        (0.0, BACKDROP_DEPTH, 0.0),
+        _principled_material("backdrop", 60.0, 6.0, 1.0, INDEX_BACKDROP),
+    )
+
+    positions = [(x, z) for z in PATCH_ROWS for x in PATCH_COLS]
+    manifest = []
+    for position, (x, z) in enumerate(positions):
+        label, scale, detail, roughness = CHART_MATERIALS[(position + 2 * permutation) % 8]
+        index = position + 1
+        add_plane(
+            f"patch_{index}_{label}",
+            PATCH_W,
+            PATCH_H,
+            (x, PATCH_DEPTH, z),
+            _principled_material(f"mat_{index}_{label}", scale, detail, roughness, index),
+        )
+        manifest.append(
+            {
+                "material_index": index,
+                "label": label,
+                "texture": "none" if scale is None else label.split("_")[0],
+                "noise_scale": scale,
+                "noise_detail": detail,
+                "roughness": roughness,
+                "position": position,
+                "centre_xz": [x, z],
+                "depth_m": PATCH_DEPTH,
+            }
+        )
+
+    # Curvature, so the stimulus is not purely fronto-parallel -- the bias that
+    # tests/integration/test_rds_end_to_end.py measures on a slanted plane. These
+    # carry a fixed mid-texture matte material and sit outside the factorial.
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12, location=(-0.25, CURVED_DEPTH, -0.24))
+    sphere = bpy.context.active_object
+    sphere.name = "sphere"
+    sphere.data.materials.append(_principled_material("sphere", 40.0, 4.0, 1.0, INDEX_SPHERE))
+
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=0.09, depth=0.24, location=(0.25, CURVED_DEPTH, -0.24)
+    )
+    cylinder = bpy.context.active_object
+    cylinder.name = "cylinder"
+    cylinder.data.materials.append(_principled_material("cylinder", 40.0, 4.0, 1.0, INDEX_CYLINDER))
+
+    return manifest
 
 
 def setup_stereo_camera(args):
@@ -269,8 +599,40 @@ def setup_render(args):
 
     # The Z pass must be enabled before the compositor tree is built, or the
     # Render Layers node exposes no Depth socket.
+    #
+    # The other three carry the *appearance* ground truth, and exist so that
+    # "how textured is this pixel" is measured rather than inferred from the
+    # beauty pass, which conflates albedo texture with shading gradient:
+    #   diffuse_color  -- albedo with lighting removed
+    #   glossy_direct  -- specular energy alone; differencing it between the
+    #                     eyes measures the brightness-constancy violation
+    #   material_index -- exact per-pixel patch label, so condition membership
+    #                     needs no segmentation heuristic
+    # hasattr-guarded per ADR-0009: these are stable names, but this script is
+    # not in a position to assume any of them.
     for view_layer in scene.view_layers:
         view_layer.use_pass_z = True
+        for pass_name in (
+            "use_pass_diffuse_color",
+            "use_pass_glossy_direct",
+            "use_pass_material_index",
+        ):
+            if hasattr(view_layer, pass_name):
+                setattr(view_layer, pass_name, True)
+            else:
+                print(f"[render_stereo] WARNING: no {pass_name} on this build", file=sys.stderr)
+
+    # Denoising must stay OFF. It smooths the beauty pass, which would
+    # artificially assist matching on exactly the low-texture patches under
+    # test -- the denoiser would be supplying the spatial structure whose
+    # absence is the independent variable. Higher --samples is the honest way
+    # to reduce noise. Recorded in rig.json so a denoised render is identifiable.
+    for owner in (getattr(scene, "cycles", None), *scene.view_layers):
+        if owner is not None and hasattr(owner, "use_denoising"):
+            owner.use_denoising = False
+        cycles_layer = getattr(owner, "cycles", None)
+        if cycles_layer is not None and hasattr(cycles_layer, "use_denoising"):
+            cycles_layer.use_denoising = False
 
     return scene
 
@@ -474,12 +836,36 @@ def setup_compositor(scene, out_dir, args):
     return tree
 
 
-def write_rig(args, out_dir):
+def write_chart(args, out_dir, manifest):
+    """Record which material sat at which patch, for this permutation.
+
+    Without this the ``material_index`` pass is an unlabelled integer field. The
+    experiment joins on ``material_index`` to recover each pixel's condition.
+    """
+    chart = {
+        "scene": "material-chart",
+        "lighting": args.lighting,
+        "permutation": args.permutation,
+        "patch_depth_m": PATCH_DEPTH,
+        "backdrop_depth_m": BACKDROP_DEPTH,
+        "index_backdrop": INDEX_BACKDROP,
+        "index_sphere": INDEX_SPHERE,
+        "index_cylinder": INDEX_CYLINDER,
+        "materials": manifest,
+    }
+    with open(os.path.join(out_dir, "chart.json"), "w") as f:
+        json.dump(chart, f, indent=2)
+
+
+def write_rig(args, out_dir, scene=None):
     """Record the camera parameters the loader needs.
 
     A render whose intrinsics are not written down is not reproducible, however
     carefully the pixels were computed.
     """
+    denoising = None
+    if scene is not None and getattr(scene, "cycles", None) is not None:
+        denoising = bool(getattr(scene.cycles, "use_denoising", False))
     rig = {
         "resolution_x": args.resolution[0],
         "resolution_y": args.resolution[1],
@@ -496,6 +882,14 @@ def write_rig(args, out_dir):
         else str(bpy.app.build_hash),
         "depth_pass": "Z",
         "mode": args.mode,
+        "scene": args.scene,
+        "lighting": args.lighting if args.scene == "material-chart" else None,
+        "permutation": args.permutation if args.scene == "material-chart" else None,
+        "samples": args.samples,
+        # Denoising smooths the beauty pass and would assist matching on exactly
+        # the low-texture surfaces under test. Recorded so a denoised render
+        # cannot be mistaken for a clean one after the fact.
+        "denoising": denoising,
         "depth_is_radial": None,  # calibrate with infer_depth_convention()
         "note": (
             "Run activestereo.scenes.blender.infer_depth_convention on a "
@@ -616,7 +1010,11 @@ def main():
     out_dir = os.path.abspath(args.out)
     os.makedirs(out_dir, exist_ok=True)
 
-    if args.procedural:
+    manifest = None
+    if args.scene == "material-chart":
+        check_fixation_clears_scene(args.convergence, PATCH_DEPTH, BACKDROP_DEPTH)
+        manifest = build_material_chart_scene(permutation=args.permutation, lighting=args.lighting)
+    elif args.procedural:
         build_procedural_scene()
 
     setup_stereo_camera(args)
@@ -665,7 +1063,9 @@ def main():
         )
 
     renamed = rename_multiview_outputs(scene, out_dir)
-    write_rig(args, out_dir)
+    write_rig(args, out_dir, scene)
+    if manifest is not None:
+        write_chart(args, out_dir, manifest)
     out_dir_path = Path(out_dir)
 
     print(f"[render_stereo] wrote {len(renamed)} files to {out_dir}")
