@@ -43,6 +43,7 @@ from __future__ import annotations
 import numpy as np
 
 from activestereo.types import FloatArray
+from activestereo.utils import boxsum
 
 
 class GaborEnergyEncoder:
@@ -134,29 +135,19 @@ class GaborEnergyEncoder:
 def _pooled_mean(a: FloatArray, r: int) -> FloatArray:
     """Mean over a (2r+1)x(2r+1) window, masking non-finite entries before
     mixing (ADR-0002) rather than letting a single noisy pixel's coherence
-    stand for its neighbourhood. Same cumulative-sum box-sum technique as
-    ``inference.block.BlockMatcher._boxsum``, duplicated locally rather than
-    imported since it's a small private helper each module owns.
+    stand for its neighbourhood. Pooling uses the shared
+    ``utils.boxsum``, the same summed-area technique ``inference.block`` applies
+    to its own per-pixel cost.
     """
     if r == 0:
         return a
     valid = np.isfinite(a)
     filled = np.where(valid, a, 0.0)
-    s = _boxsum(filled, r)
-    n = _boxsum(valid.astype(float), r)
+    s = boxsum(filled, r)
+    n = boxsum(valid.astype(float), r)
     kernel_area = (2 * r + 1) ** 2
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(n > 0.5 * kernel_area, s / np.maximum(n, 1.0), np.nan)
-
-
-def _boxsum(a: FloatArray, r: int) -> FloatArray:
-    """Sum over a (2r+1)x(2r+1) window, edge-padded, same shape out."""
-    pad = np.pad(a, r, mode="edge")
-    c = np.cumsum(np.cumsum(pad, axis=0), axis=1)
-    c = np.pad(c, ((1, 0), (1, 0)))
-    k = 2 * r + 1
-    H, W = a.shape
-    return c[k : k + H, k : k + W] - c[0:H, k : k + W] - c[k : k + H, 0:W] + c[0:H, 0:W]
 
 
 def _complex_response(image: FloatArray, frequency: float, sigma: float) -> np.ndarray:

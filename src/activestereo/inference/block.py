@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from activestereo.types import Estimate, FloatArray
+from activestereo.utils import boxsum
 
 
 class BlockMatcher:
@@ -60,9 +61,8 @@ class BlockMatcher:
             diff = (left - shifted) ** 2
             valid = np.isfinite(diff)
             diff = np.where(valid, diff, 0.0)
-            # Box-sum via uniform convolution using cumulative sums.
-            s = _boxsum(diff, r)
-            n = _boxsum(valid.astype(float), r)
+            s = boxsum(diff, r)
+            n = boxsum(valid.astype(float), r)
             with np.errstate(invalid="ignore", divide="ignore"):
                 cost[d] = np.where(n > 0.5 * kernel_area, s / np.maximum(n, 1.0), np.inf)
 
@@ -88,16 +88,6 @@ class BlockMatcher:
         value = np.where(accept, d_sub, np.nan)
         variance = np.where(accept, var, np.nan)
         return Estimate(value=value, variance=variance)
-
-
-def _boxsum(a: FloatArray, r: int) -> FloatArray:
-    """Sum over a (2r+1)^2 window, edge-padded, same shape out."""
-    pad = np.pad(a, r, mode="edge")
-    c = np.cumsum(np.cumsum(pad, axis=0), axis=1)
-    c = np.pad(c, ((1, 0), (1, 0)))
-    k = 2 * r + 1
-    H, W = a.shape
-    return c[k : k + H, k : k + W] - c[0:H, k : k + W] - c[k : k + H, 0:W] + c[0:H, 0:W]
 
 
 def _subpixel_and_variance(
