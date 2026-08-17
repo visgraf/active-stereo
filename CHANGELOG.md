@@ -6,6 +6,21 @@ Tags mark milestones and submissions, so the paper can cite a fixed state.
 ## [Unreleased]
 
 ### Added
+- `--scene material-chart` in `scripts/render_stereo.py`: eight coplanar patches
+  spanning dense albedo texture to constant albedo, matte to glossy, under three
+  procedural lighting rigs. Geometry is bit-identical across conditions, so
+  appearance is the only variable; material-to-position assignment is permuted so
+  texture level is not confounded with eccentricity
+- Appearance ground truth from render passes — `Diffuse Color`, `Glossy Direct`,
+  `Material Index` — read by `read_multilayer_exr`, with `albedo_texture_contrast`
+  and `AppearanceGroundTruth.specular_mismatch`
+- `BlenderRenderScene`: a render directory presented as a `Scene`. Refuses a
+  mismatched rig rather than silently rescaling depth, and resolves the depth
+  convention by measuring it against the chart's known-flat backdrop
+- `scripts/render_chart_sweep.py`: renders the 12-condition exp003 stimulus set
+- exp003 (issue #4): both hypotheses falsified. Texture loss is reported honestly
+  (637x variance inflation) while half-occlusion is not (5x) — so occlusion is the
+  more dangerous failure, corroborating exp001 on a rendered stimulus
 - `scenes` package (ADR-0006): random-dot stereogram synthesis with z-buffer
   half-occlusion, four ground-truth depth maps, and a Blender render loader
 - `scripts/render_stereo.py`: Blender stereo rendering with per-eye depth passes
@@ -28,6 +43,16 @@ Tags mark milestones and submissions, so the paper can cite a fixed state.
   blocking CI step (ADR-0008)
 
 ### Fixed
+- `infer_depth_convention` answered `"radial"` with full confidence on any scene
+  that was not a fronto-parallel calibration wall — nearer objects mid-frame make
+  depth "grow toward the corners" for the wrong reason. Now guarded by a
+  radial-symmetry check that returns `"unknown"` instead
+- `rig.json` writes `depth_is_radial: null` because the render script cannot know
+  it, and the consumer did `bool(meta.get(...))` — turning "nobody has checked"
+  into "planar, definitely" silently. An uncorrected radial pass is a few percent
+  of peripheral depth error, indistinguishable from an ADR-0003 result
+- `demo_active_stereo.py` scored occlusion as `~stim.matched`, conflating
+  half-occlusion with out-of-frame and inflating the statistic with border pixels
 - `[tool.mypy] python_version = "3.10"` made mypy parse numpy's PEP 695 stubs
   with an old grammar, aborting the type check before it reached our code
 - SGBM now calls `cv2.StereoSGBM.create` rather than the module-level

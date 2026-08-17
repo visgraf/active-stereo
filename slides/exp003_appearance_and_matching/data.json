@@ -1,0 +1,214 @@
+{
+  "texture": [
+    {
+      "texture": "dense",
+      "coverage": 0.9951303492375799,
+      "safe_fraction": 0.9941674632711208,
+      "error_m": 0.0006014317726680818,
+      "variance": 28.163146840908166,
+      "texture_contrast": 0.19256147423402678,
+      "specular_mismatch": 0.0036916557316810364
+    },
+    {
+      "texture": "mid",
+      "coverage": 0.992932649026905,
+      "safe_fraction": 0.9913920314805706,
+      "error_m": 0.0008199168215846098,
+      "variance": 93.696109504246,
+      "texture_contrast": 0.17474923655669106,
+      "specular_mismatch": 0.0037277193816743987
+    },
+    {
+      "texture": "coarse",
+      "coverage": 0.9904574520413183,
+      "safe_fraction": 0.3891140521025717,
+      "error_m": 0.001759570800573984,
+      "variance": 1280.9507757079896,
+      "texture_contrast": 0.0717611657643723,
+      "specular_mismatch": 0.0037827694486978116
+    },
+    {
+      "texture": "none",
+      "coverage": 0.7131578947368421,
+      "safe_fraction": 0.0416189477396542,
+      "error_m": 0.060230594376806695,
+      "variance": 53345.72658315378,
+      "texture_contrast": 4.904669923141577e-06,
+      "specular_mismatch": 0.00372218620306385
+    }
+  ],
+  "material": [
+    {
+      "texture": "dense",
+      "matte": {
+        "coverage": 0.9951303492375799,
+        "safe_fraction": 0.9941674632711208,
+        "error_m": 0.0006014317726680818,
+        "variance": 28.163146840908166,
+        "texture_contrast": 0.19256147423402678,
+        "specular_mismatch": 0.0036916557316810364
+      },
+      "glossy": {
+        "coverage": 0.9953326713008938,
+        "safe_fraction": 0.9943665370444273,
+        "error_m": 0.0006012801258667988,
+        "variance": 29.7330189451645,
+        "texture_contrast": 0.18760003641323764,
+        "specular_mismatch": 0.061981630033427666
+      }
+    },
+    {
+      "texture": "mid",
+      "matte": {
+        "coverage": 0.992932649026905,
+        "safe_fraction": 0.9913920314805706,
+        "error_m": 0.0008199168215846098,
+        "variance": 93.696109504246,
+        "texture_contrast": 0.17474923655669106,
+        "specular_mismatch": 0.0037277193816743987
+      },
+      "glossy": {
+        "coverage": 0.9928184948352189,
+        "safe_fraction": 0.9907525823905559,
+        "error_m": 0.0008274254029446704,
+        "variance": 98.53836272645054,
+        "texture_contrast": 0.17018427163456906,
+        "specular_mismatch": 0.06148023624568755
+      }
+    },
+    {
+      "texture": "coarse",
+      "matte": {
+        "coverage": 0.9904574520413183,
+        "safe_fraction": 0.3891140521025717,
+        "error_m": 0.001759570800573984,
+        "variance": 1280.9507757079896,
+        "texture_contrast": 0.0717611657643723,
+        "specular_mismatch": 0.0037827694486978116
+      },
+      "glossy": {
+        "coverage": 0.9869066070218749,
+        "safe_fraction": 0.3757417702252457,
+        "error_m": 0.0017141018415200437,
+        "variance": 1317.0745542695408,
+        "texture_contrast": 0.06995446991096527,
+        "specular_mismatch": 0.03678782522470905
+      }
+    },
+    {
+      "texture": "none",
+      "matte": {
+        "coverage": 0.7131578947368421,
+        "safe_fraction": 0.0416189477396542,
+        "error_m": 0.060230594376806695,
+        "variance": 53345.72658315378,
+        "texture_contrast": 4.904669923141577e-06,
+        "specular_mismatch": 0.00372218620306385
+      },
+      "glossy": {
+        "coverage": 0.7046868184391503,
+        "safe_fraction": 0.0441219872110182,
+        "error_m": 0.08512405559108233,
+        "variance": 87057.30798120878,
+        "texture_contrast": 2.315709948895854e-06,
+        "specular_mismatch": 0.05708047756361172
+      }
+    }
+  ],
+  "lighting": [
+    {
+      "lighting": "ambient",
+      "textured": {
+        "coverage": 0.9943168846114581,
+        "safe_fraction": 0.9938231445303437,
+        "error_m": 0.0006093987991822591,
+        "variance": 34.090657730287376,
+        "texture_contrast": 0.19252706215298127,
+        "specular_mismatch": 0.006729398278261743
+      },
+      "textureless": {
+        "coverage": 0.6078631820248912,
+        "safe_fraction": 0.03943424068900872,
+        "error_m": 0.29187689094749214,
+        "variance": 33397.5204329762,
+        "texture_contrast": 4.905432765886523e-06,
+        "specular_mismatch": 0.007858899105260001
+      }
+    },
+    {
+      "lighting": "key",
+      "textured": {
+        "coverage": 0.9951303492375799,
+        "safe_fraction": 0.9948352188883424,
+        "error_m": 0.0006016948121544408,
+        "variance": 17.14671760199431,
+        "texture_contrast": 0.19255435611305102,
+        "specular_mismatch": 0.0025087287853671103
+      },
+      "textureless": {
+        "coverage": 0.7131578947368421,
+        "safe_fraction": 0.043066757000064966,
+        "error_m": 0.060230594376806695,
+        "variance": 68166.26230851308,
+        "texture_contrast": 4.905259326716592e-06,
+        "specular_mismatch": 0.00346129705146449
+      }
+    },
+    {
+      "lighting": "grazing",
+      "textured": {
+        "coverage": 0.995995786503819,
+        "safe_fraction": 0.9944124771459596,
+        "error_m": 0.0005950085057991883,
+        "variance": 51.70216915795271,
+        "texture_contrast": 0.19256147423402678,
+        "specular_mismatch": 0.0036916557316810364
+      },
+      "textureless": {
+        "coverage": 0.9878054552710466,
+        "safe_fraction": 0.07132873622957057,
+        "error_m": 0.0026792455974529727,
+        "variance": 230156.36296398964,
+        "texture_contrast": 4.9046301065238706e-06,
+        "specular_mismatch": 0.00372218620306385
+      }
+    }
+  ],
+  "calibration": {
+    "textured": 90.0074932442843,
+    "textureless": 57339.29556008146,
+    "occluded": 425.8462519421019
+  },
+  "specular_tail": {
+    "bins": [
+      "0-50",
+      "50-80",
+      "80-95",
+      "95-99",
+      "99-100"
+    ],
+    "p50": [
+      0.9785502730492723,
+      0.8473666025028415,
+      0.9140891988487221,
+      1.9649941302670726,
+      3.0490808080253506
+    ],
+    "p90": [
+      5.027846572751124,
+      3.4987308522848926,
+      5.496199113328992,
+      72.49757865260958,
+      67.06573422913917
+    ],
+    "edges": [
+      7.248480636191869e-08,
+      0.0607115941234971,
+      0.1471931952993064,
+      0.3767974841885013,
+      0.6716452615493091,
+      0.9176292778720532
+    ]
+  },
+  "safe_factor": 10.0
+}

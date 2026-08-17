@@ -45,3 +45,7 @@ paper/main.pdf
 .\#*
 *~
 .DS_Store
+
+# Self-contained slide decks: figures are embedded as base64, so the HTML is
+# multi-MB and fully regenerable from scripts/make_exp003_slides.py.
+slides/*/deck.html
