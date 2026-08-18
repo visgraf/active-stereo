@@ -92,10 +92,18 @@ median local contrast of matched pixels (block, `im1`, held-out scenes):
 | Vintage | **301.4** | 30 737.1 | 10 406.6 | 17 288 |
 
 The confound is not merely absent, it is reversed. **Low**-contrast occlusions
-behave exactly as exp003 predicts — variance inflates, often by an order of
-magnitude, and those answers are discounted safely. The danger is in the
+behave exactly as exp003 predicts — variance inflates (median 2.95× the matched
+level) and those answers are discounted safely. The danger is in the
 **high**-contrast occlusions, where variance runs *below* the matched median in
-all eight scenes, by up to 12× (Motorcycle: 226.6 against 1 899.0).
+all eight scenes: **8.3× lower on the median scene, and up to 34.5× lower**
+(Vintage: 301.4 against 10 406.6). The smallest gap is 2.6× (Pipes).
+
+> Corrected after first writing. This paragraph originally said "up to 12×
+> (Motorcycle: 226.6 against 1 899.0)". Motorcycle is 8.4×, not 12×, and it is not
+> the extreme — Vintage is. The error understated the effect and pointed at the
+> wrong scene; it was caught while building the figure that plots all eight.
+> Per-scene factors: Pipes 2.6, Playroom 3.8, Playtable 4.8, Piano 8.2,
+> Motorcycle 8.4, Shelves 13.5, Recycle 25.6, Vintage 34.5.
 
 Which makes mechanical sense, and is the sharpest way to state the finding: a
 half-occluded pixel beside a strong edge produces a **sharp, unambiguous cost
