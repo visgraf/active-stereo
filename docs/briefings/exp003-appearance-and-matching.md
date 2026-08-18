@@ -4,6 +4,13 @@
 · **Issue:** [#4](https://github.com/visgraf/active-stereo/issues/4)
 · **Run:** `exp003-20260816T131125-3fe9985`
 
+> **Partly superseded by [exp004](../../experiments/exp004_real_data_transfer/findings.md).**
+> Everything below about *texture* still holds. The conclusion about
+> *half-occlusion* was too kind. exp003 measured a 5× variance inflation there and
+> called the uncertainty under-inflated; on real photographs it turns out to be
+> **inverted** — occluded estimates are reported as *more* confident than correct
+> ones. The affected passages are marked inline.
+
 ---
 
 ## The question
@@ -127,6 +134,22 @@ but because only one of them is reported honestly. And this now holds across two
 completely different stimulus families: random-dot patterns in exp001, rendered
 Blender scenes here.
 
+> **Superseded — it is worse than 5×.** On real photographs
+> ([exp004](../../experiments/exp004_real_data_transfer/findings.md)) the
+> half-occlusion variance is not *under*-inflated. It is **inverted**: about
+> **three times lower** than in genuinely matched regions, in seven of eight
+> scenes. The matcher's occluded estimates are not merely trusted too much, they
+> are its **most confident answers of all**.
+>
+> And exp004 found *why*, by running the check this briefing's own confound guard
+> was designed for. The effect concentrates in **high-contrast** occlusions —
+> variance below the matched median in every scene, by up to 12×. A half-occluded
+> pixel beside a strong edge produces a sharp, unambiguous cost minimum *at the
+> wrong disparity*, and a curvature-based variance reads that sharpness as
+> precision. Low-contrast occlusions behave exactly as this briefing describes and
+> are discounted safely; the danger is the crisp, well-lit, obviously-textured
+> ones. Which is to say: the pixels a gaze policy would choose to look at.
+
 ## The threat we checked, and cleared
 
 Before running, the main worry was recorded: a "uniform" patch is not truly blank
@@ -179,7 +202,12 @@ correctness** — precisely what a cost-curvature proxy would do.
 | Textured | right | trusted | works |
 | Blank wall, flat light | wrong | distrusted | safe |
 | Blank wall, raking light | **right** | **distrusted** | safe but wasteful |
-| Half-occluded | fabricated | **trusted** | poisons fusion |
+| Half-occluded, low contrast | fabricated | distrusted | safe |
+| Half-occluded, **high contrast** | fabricated | **trusted most of all** | poisons fusion |
+
+The last two rows are exp004's refinement of what exp003 recorded as a single
+"half-occluded / trusted" row. The split is the actionable part: occlusion is not
+uniformly dangerous, it is dangerous exactly where the image looks easiest.
 
 Not pre-registered: this is a breakdown of the same twelve renders along a factor
 the design already balanced, so the permutation control still holds — but it
@@ -204,6 +232,13 @@ rigs.
    surfaces". It is that the system's *uncertainty is well calibrated for missing
    evidence and poorly calibrated for fabricated evidence* — which is a sharper
    and more interesting statement.
+
+   **exp004 sharpens this again, and the wording matters.** On real photographs
+   the second half is not "poorly calibrated" but ***anti*-calibrated**: the
+   confidence ordering is inverted exactly where being wrong costs most. "Poorly
+   calibrated" suggests a number that needs rescaling. It does not — it needs a
+   different quantity, because cost curvature can express "this match is well
+   localised" and structurally cannot express "there is no correspondent here".
 
 ## What we would do differently
 

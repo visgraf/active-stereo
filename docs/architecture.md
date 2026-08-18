@@ -44,12 +44,26 @@ against*.
 |---|---|---|---|
 | Random-dot stereogram | `scenes.rds` | disparity only | Proving a depth estimate came from matching |
 | Rendered | `scenes.blender` + `scripts/render_stereo.py` | all cues | Photometric realism, XR-relevant failure modes |
+| Measured | `scenes.middlebury` + `scripts/fetch_middlebury.py` | all cues | Transfer to real imagery; ground truth we did not author |
 
-A `StereoStimulus` carries two boolean masks, deliberately separate:
-`matched` (has a right-image correspondent) and `in_frame` (the correspondent
-lands inside the sensor). `occluded = in_frame & ~matched` is the geometric
-quantity; `out_of_frame` is a rig limit. Pooling them makes a smooth, unoccluded
-surface look occluded.
+`scenes.from_config(cfg)` builds any of them from a `scene:` block, returning a
+**list** — a corpus is many scenes, an RDS is one, and no caller should branch on
+which. Blobs for the measured corpus live outside the repository at
+`$ACTIVESTEREO_DATA_ROOT` (ADR-0012).
+
+A `StereoStimulus` carries three boolean masks plus an optional fourth,
+deliberately separate: `matched` (has a right-image correspondent), `in_frame`
+(the correspondent lands inside the sensor), and `known` (ground truth exists at
+all — `None` for a synthesised stimulus, which knows every pixel).
+`occluded = in_frame & ~matched & known` is the geometric quantity;
+`out_of_frame` is a rig limit; `~known` is a gap in our knowledge, not a fact
+about the scene (ADR-0011). Pooling any of them makes a smooth, unoccluded
+surface look occluded. The categories therefore do **not** partition the frame;
+`unknown_fraction` reports what is left over.
+
+**Only L1–L4 are exercised by the measured corpus.** L5 changes vergence and L6
+changes fixation; both need a new view, and a photograph has one. That is a
+limit of the stimulus, not an oversight — see ADR-0012.
 
 **Caveat on the horopter (ADR-0007).** L1's projection is a shifted-frustum
 (off-axis) model whose zero-disparity locus is a fronto-parallel plane. The

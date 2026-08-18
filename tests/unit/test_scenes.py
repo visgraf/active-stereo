@@ -167,3 +167,94 @@ def test_out_of_frame_is_not_counted_as_occlusion(demo_rig):
     assert s.out_of_frame.sum() > 0
     assert not (s.occluded & s.out_of_frame).any()
     assert s.occlusion_fraction < float(1.0 - s.matched.mean())
+
+
+# --- ADR-0011: ground truth we do not have -----------------------------------
+
+
+def _with_known(stim, known):
+    """Copy a stimulus, supplying a ``known`` mask. The dataclass is frozen."""
+    from dataclasses import replace
+
+    return replace(stim, known=known)
+
+
+def test_synthetic_stimulus_leaves_known_unset(demo_rig):
+    """An RDS knows the disparity of every pixel because it placed the dots.
+    ``None`` is the honest answer, and it is what keeps exp001-exp003 comparable."""
+    s = _stim(disk, demo_rig)
+    assert s.known is None
+    assert s.unknown_fraction == 0.0
+
+
+def test_known_none_reproduces_pre_adr_behaviour(demo_rig):
+    """ADR-0011 must be invisible to every existing caller. These three properties
+    are what exp001, exp002 and exp003 are scored through; if any of them moved,
+    three sets of published run-ids would silently stop meaning what they say."""
+    s = _stim(disk, demo_rig)
+    np.testing.assert_array_equal(s.scorable, s.matched)
+    np.testing.assert_array_equal(s.occluded, s.in_frame & ~s.matched)
+    np.testing.assert_array_equal(s.out_of_frame, ~s.in_frame)
+
+
+def test_known_narrows_scorable_occluded_and_out_of_frame(demo_rig):
+    s = _stim(disk, demo_rig)
+    known = np.ones(s.shape, bool)
+    known[10:20, 30:40] = False
+    holed = _with_known(s, known)
+
+    assert holed.unknown_fraction == pytest.approx(100 / (s.shape[0] * s.shape[1]))
+    for full, narrowed in (
+        (s.scorable, holed.scorable),
+        (s.occluded, holed.occluded),
+        (s.out_of_frame, holed.out_of_frame),
+    ):
+        assert not (narrowed & ~known).any()
+        np.testing.assert_array_equal(narrowed, full & known)
+
+
+def test_unknown_pixels_land_in_no_scene_category(demo_rig):
+    """The regression ADR-0011 exists to prevent.
+
+    A scanner hole is a gap in our knowledge, not a fact about the scene. Charged
+    to ``occluded`` it inflates exp001's headline metric; charged to
+    ``out_of_frame`` it inflates a field-of-view statistic with a sensor failure.
+    It must appear in neither -- so the three categories stop partitioning the
+    frame, and ``unknown_fraction`` accounts for the remainder.
+    """
+    s = _stim(staircase, demo_rig)
+    known = np.ones(s.shape, bool)
+    known[::7, ::5] = False  # scattered, so it crosses occluded and border alike
+    holed = _with_known(s, known)
+
+    unknown = ~known
+    assert unknown.sum() > 0
+    assert not (holed.occluded & unknown).any()
+    assert not (holed.out_of_frame & unknown).any()
+    assert not (holed.scorable & unknown).any()
+
+    # Where truth *does* exist, the three scene categories still partition. Union
+    # alone would be vacuous -- it holds by construction whatever the masks say --
+    # so the load-bearing half is that they stay mutually exclusive, in particular
+    # that nothing is both matched and off-sensor.
+    classes = (holed.scorable, holed.occluded, holed.out_of_frame)
+    for i, a in enumerate(classes):
+        for b in classes[i + 1 :]:
+            assert not (a & b).any()
+    assert (classes[0] | classes[1] | classes[2])[known].all()
+
+
+def test_stimulus_rejects_mismatched_known_shape(demo_rig):
+    from activestereo.scenes.base import StereoStimulus
+
+    with pytest.raises(ValueError, match="disagree in shape"):
+        StereoStimulus(
+            left=np.zeros((4, 4)),
+            right=np.zeros((4, 4)),
+            depth=np.zeros((4, 4)),
+            disparity=np.zeros((4, 4)),
+            matched=np.ones((4, 4), bool),
+            in_frame=np.ones((4, 4), bool),
+            rig=demo_rig,
+            known=np.ones((5, 5), bool),
+        )
