@@ -1,0 +1,269 @@
+{
+  "run_id": "exp004-20260818T213856-640b00e",
+  "held_out_scenes": [
+    "Motorcycle",
+    "Piano",
+    "Pipes",
+    "Playroom",
+    "Playtable",
+    "Recycle",
+    "Shelves",
+    "Vintage"
+  ],
+  "seen_scenes": [
+    "Adirondack",
+    "Jadeplant"
+  ],
+  "heldout_medians": {
+    "block": {
+      "im1": {
+        "coverage_median": 0.922194325849655,
+        "bad2_median": 0.3300254388657953,
+        "disparity_error_px_median": 0.5212941691734834,
+        "depth_error_m_median": 0.013387977757377822,
+        "hallucination_median": 0.8258587026068644,
+        "var_ratio_median": 0.3236442963571663,
+        "var_matched_px2_median": 3873.491620475988,
+        "var_occluded_px2_median": 872.2351840248355,
+        "n_scenes": 8
+      },
+      "im1E": {
+        "coverage_median": 0.44559091252893424,
+        "bad2_median": 0.8693147350699996,
+        "disparity_error_px_median": 21.567995176134573,
+        "depth_error_m_median": 0.5130180560383882,
+        "hallucination_median": 0.5884210618373288,
+        "var_ratio_median": 0.9453669112672718,
+        "var_matched_px2_median": 530.7259554401708,
+        "var_occluded_px2_median": 487.41446580892443,
+        "n_scenes": 8
+      },
+      "im1L": {
+        "coverage_median": 0.6047082437789979,
+        "bad2_median": 0.7214288034899204,
+        "disparity_error_px_median": 12.311151157599511,
+        "depth_error_m_median": 0.3251016578677403,
+        "hallucination_median": 0.6964784872718119,
+        "var_ratio_median": 0.5202507126396373,
+        "var_matched_px2_median": 1120.92993887779,
+        "var_occluded_px2_median": 538.7866666483519,
+        "n_scenes": 8
+      }
+    },
+    "sgbm": {
+      "im1": {
+        "coverage_median": 0.8758612873016829,
+        "bad2_median": 0.08725598908859347,
+        "disparity_error_px_median": 0.23975435892741093,
+        "depth_error_m_median": 0.006219352092619368,
+        "hallucination_median": 0.5355422031431678,
+        "var_ratio_median": 1.0,
+        "var_matched_px2_median": 0.25,
+        "var_occluded_px2_median": 0.25,
+        "n_scenes": 8
+      },
+      "im1E": {
+        "coverage_median": 0.6636764177795069,
+        "bad2_median": 0.21967089696489517,
+        "disparity_error_px_median": 0.32992235819498816,
+        "depth_error_m_median": 0.007489350978696019,
+        "hallucination_median": 0.454707669070625,
+        "var_ratio_median": 1.0,
+        "var_matched_px2_median": 0.25,
+        "var_occluded_px2_median": 0.25,
+        "n_scenes": 8
+      },
+      "im1L": {
+        "coverage_median": 0.5648740955761685,
+        "bad2_median": 0.3340516241675068,
+        "disparity_error_px_median": 0.5376078287760429,
+        "depth_error_m_median": 0.014529981995788477,
+        "hallucination_median": 0.4231889818216602,
+        "var_ratio_median": 1.0,
+        "var_matched_px2_median": 0.25,
+        "var_occluded_px2_median": 0.25,
+        "n_scenes": 8
+      }
+    }
+  },
+  "hypotheses": {
+    "block": {
+      "variance_is_constant_by_construction": false,
+      "H1_variance_ratio_median": 0.3236442963571663,
+      "H1_variance_under_20x": true,
+      "H1_variance_test_is_vacuous": false,
+      "H1_hallucination_median": 0.8258587026068644,
+      "H1_hallucination_at_least_half_exp001": true,
+      "H1_survives": true,
+      "H1b_per_scene_ratios": [
+        0.21893170461997624,
+        0.4679560586607486,
+        1.1194892504653018,
+        0.42835688809435635,
+        0.6102142241697268,
+        0.08129179935297026,
+        0.20854528663053157,
+        0.05902401096582526
+      ],
+      "H1b_n_scenes_at_or_above_1": 1,
+      "H1b_survives": true,
+      "H2": {
+        "im1E": {
+          "coverage_drop": 0.4757695748042132,
+          "error_rise_fraction": 43.11363788384365,
+          "per_scene_coverage_drop": [
+            0.47977609276960376,
+            0.5765928996069487,
+            0.23962007326300616,
+            0.16537422506184762,
+            0.47176305683882264,
+            0.5525859076709476,
+            0.5380143490575395,
+            0.47151735697907293
+          ],
+          "per_scene_error_rise": [
+            40.69459545937722,
+            60.38086318266013,
+            109.44884433894123,
+            9.547030000241971,
+            87.25404760447569,
+            33.125671857093245,
+            18.77276744905487,
+            45.532680308310084
+          ],
+          "coverage_held_flat": false,
+          "error_rose_enough": true,
+          "survives": false
+        },
+        "im1L": {
+          "coverage_drop": 0.30985384487606465,
+          "error_rise_fraction": 27.217976615109826,
+          "per_scene_coverage_drop": [
+            0.36547546004180675,
+            0.4025273370342285,
+            0.335528554556919,
+            0.1427445559409467,
+            0.3193399630087336,
+            0.270775483049867,
+            0.30036772674339574,
+            0.261031332539982
+          ],
+          "per_scene_error_rise": [
+            32.66970809314382,
+            32.75873442628266,
+            109.39796057791241,
+            2.768589698795768,
+            76.79232460757504,
+            21.766245137075835,
+            9.172859780774328,
+            14.896941382213086
+          ],
+          "coverage_held_flat": false,
+          "error_rose_enough": true,
+          "survives": false
+        }
+      }
+    },
+    "sgbm": {
+      "variance_is_constant_by_construction": true,
+      "H1_variance_ratio_median": 1.0,
+      "H1_variance_under_20x": true,
+      "H1_variance_test_is_vacuous": true,
+      "H1_hallucination_median": 0.5355422031431678,
+      "H1_hallucination_at_least_half_exp001": true,
+      "H1_survives": true,
+      "H1b_per_scene_ratios": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "H1b_n_scenes_at_or_above_1": 8,
+      "H1b_survives": false,
+      "H2": {
+        "im1E": {
+          "coverage_drop": 0.1983751388096518,
+          "error_rise_fraction": 0.39940011143248866,
+          "per_scene_coverage_drop": [
+            0.10837946790387609,
+            0.19256039038847816,
+            0.2274856376483777,
+            0.19334785925310927,
+            0.20164387197372458,
+            0.23974242161286585,
+            0.19510640564557902,
+            0.3184029692624735
+          ],
+          "per_scene_error_rise": [
+            0.24097748614093328,
+            0.09876470901442858,
+            0.6377053082598996,
+            0.5810020097106603,
+            0.4592424814395428,
+            0.5161365305270658,
+            0.3395577414254345,
+            0.22614818969279193
+          ],
+          "coverage_held_flat": false,
+          "error_rose_enough": true,
+          "survives": false
+        },
+        "im1L": {
+          "coverage_drop": 0.27485509416639375,
+          "error_rise_fraction": 0.9741869966097273,
+          "per_scene_coverage_drop": [
+            0.24023790143229606,
+            0.2217507665175117,
+            0.39407490441779935,
+            0.22816792188033397,
+            0.33537020295432485,
+            0.28933819275714445,
+            0.2821228229364505,
+            0.26758736539633704
+          ],
+          "per_scene_error_rise": [
+            2.1656437379793547,
+            0.6231617059794412,
+            4.801713877648025,
+            0.6860582993935533,
+            9.520221467220347,
+            1.2623156938259013,
+            0.5862472634395413,
+            0.05842213497850057
+          ],
+          "coverage_held_flat": false,
+          "error_rose_enough": true,
+          "survives": false
+        }
+      }
+    }
+  },
+  "variance_by_region": {
+    "matched": {
+      "median_px2": 3873.491620475988,
+      "ratio_to_matched": 1.0
+    },
+    "occluded (all)": {
+      "median_px2": 872.2351840248355,
+      "ratio_to_matched": 0.3236442963571663
+    },
+    "occluded low contrast": {
+      "median_px2": 11446.561750909128,
+      "ratio_to_matched": 2.949995939241509
+    },
+    "occluded HIGH contrast": {
+      "median_px2": 394.51784131681785,
+      "ratio_to_matched": 0.12076045992807719
+    }
+  },
+  "aggregation": "ratios are medians of per-scene ratios, matching findings.md's var_ratio_median; a ratio of pooled medians gives 0.225 instead of 0.324",
+  "exp001_reference": {
+    "block": 0.796,
+    "sgbm": 0.09
+  },
+  "safe_factor": 10.0
+}

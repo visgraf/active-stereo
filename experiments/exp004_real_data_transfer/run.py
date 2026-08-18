@@ -23,12 +23,13 @@ from pathlib import Path
 import numpy as np
 
 from activestereo.inference import BlockMatcher
+from activestereo.metrics import local_contrast
 from activestereo.scaling import scale_to_depth
 from activestereo.scenes import from_config
 from activestereo.scenes.base import cross_check_disparity
 from activestereo.scenes.middlebury import MiddleburyScene
 from activestereo.types import Estimate, FloatArray, StereoRig
-from activestereo.utils import RunContext, boxsum, load_config
+from activestereo.utils import RunContext, load_config
 
 #: Middlebury's leaderboard metric. Reported as an order-of-magnitude sanity
 #: check only: we downsample and they do not (ADR-0012).
@@ -74,24 +75,6 @@ def build_matchers(scene: MiddleburyScene, cfg: dict) -> dict:
     except ImportError:
         print("OpenCV unavailable; running block matcher only.")
     return matchers
-
-
-def local_contrast(image: FloatArray, window: int) -> FloatArray:
-    """Local standard deviation over a ``window x window`` box.
-
-    The stratifier for control 4. Computed on the *image*, not on an albedo pass:
-    there is no albedo pass here, and that limitation is exactly what exp003
-    warned about -- on real photographs "texture" and "shading gradient" cannot
-    be separated. Said plainly in findings rather than papered over.
-    """
-    r = window // 2
-    valid = np.isfinite(image)
-    filled = np.where(valid, image, 0.0)
-    n = boxsum(valid.astype(float), r)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        mean = np.where(n > 0, boxsum(filled, r) / np.maximum(n, 1.0), np.nan)
-        sq = np.where(n > 0, boxsum(filled**2, r) / np.maximum(n, 1.0), np.nan)
-        return np.asarray(np.sqrt(np.maximum(sq - mean**2, 0.0)), dtype=float)
 
 
 def _median(a: FloatArray) -> float:

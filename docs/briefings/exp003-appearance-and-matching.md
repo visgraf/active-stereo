@@ -143,7 +143,8 @@ Blender scenes here.
 >
 > And exp004 found *why*, by running the check this briefing's own confound guard
 > was designed for. The effect concentrates in **high-contrast** occlusions —
-> variance below the matched median in every scene, by up to 12×. A half-occluded
+> variance below the matched median in every scene: 8.3× lower on the median
+> scene, up to 34.5× on the worst. A half-occluded
 > pixel beside a strong edge produces a sharp, unambiguous cost minimum *at the
 > wrong disparity*, and a curvature-based variance reads that sharpness as
 > precision. Low-contrast occlusions behave exactly as this briefing describes and
