@@ -199,6 +199,12 @@ checks the loader rather than placing us on a leaderboard.
 
 ## What this changes
 
+Each of these is now filed with its own hypothesis and falsifiers: [#7](https://github.com/visgraf/active-stereo/issues/7)
+(left-right consistency at L3), [#8](https://github.com/visgraf/active-stereo/issues/8)
+(a variance proxy that can express "no correspondent"), [#9](https://github.com/visgraf/active-stereo/issues/9)
+(SGBM's constant variance), [#10](https://github.com/visgraf/active-stereo/issues/10)
+(whether SGBM's occlusion advantage is stimulus-dependent).
+
 1. **Occlusion detection is now the highest-value thing to build**, and exp003's
    conclusion needs strengthening rather than repeating. Occluded estimates are
    not insufficiently distrusted; they are *actively trusted more than correct
