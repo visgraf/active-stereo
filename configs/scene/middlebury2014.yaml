@@ -1,0 +1,61 @@
+defaults: [../default.yaml]
+# Experiment-side settings for the Middlebury 2014 corpus. The *fetch* side is
+# configs/dataset/middlebury2014.yaml, which holds URLs and checksums. The two
+# schemas stay disjoint: this one never downloads anything, and that one never
+# reaches load_config.
+scene:
+  kind: middlebury
+  # Omitted on purpose so it resolves to $ACTIVESTEREO_DATA_ROOT. Blobs live
+  # outside the repository; data/ holds pointers and never blobs (CLAUDE.md §2).
+  # root: ~/datasets/middlebury2014
+
+  # '-perfect' only. The '-imperfect' variants carry vertical disparity, which
+  # every matcher in inference/ assumes away; MiddleburyScene refuses them.
+  variant: perfect
+
+  # Full resolution is 2880x1988 with ndisp up to 800. Odd factors avoid the
+  # half-pixel offset between the image block mean and the point-sampled ground
+  # truth (ADR-0012). 3 gives 960x662 with ndisp 94.
+  downsample: 3
+
+  # PRE-REGISTERED, and identical to configs/dataset/middlebury2014.yaml. The
+  # official 2014 training set -- the ten scenes with published leaderboard
+  # numbers. Fixed before any result was seen; revising it afterwards would be
+  # post-hoc selection from 23 candidates.
+  scenes:
+    - Adirondack
+    - Jadeplant
+    - Motorcycle
+    - Piano
+    - Pipes
+    - Playroom
+    - Playtable
+    - Recycle
+    - Shelves
+    - Vintage
+
+matcher:
+  # ndisp, not ndisp-1: BlockMatcher rejects a winner at the last index of its
+  # search range, so an underestimate silently discards every true
+  # maximum-disparity pixel. Per-scene ndisp comes from calib.txt via
+  # MiddleburyScene.ndisp; this is only a memory guard.
+  #
+  # Set ABOVE every scene in the corpus at downsample 3, so it never binds. The
+  # spread is wide -- Shelves needs 80, Vintage 247 -- and an earlier value of
+  # 200 would have truncated Vintage (held out) and Jadeplant. A truncated search
+  # range does not look like a truncated search range downstream: the near
+  # surfaces simply go unmatched, which reads as matcher failure rather than as a
+  # range nobody looked in. The runner raises if this ever binds.
+  #
+  # Cost at the ceiling: 248 x 641 x 970 x 8 B = 1.2 GB for the cost volume, and
+  # np.argmin buffers a second one (see inference/block.py), so ~2.5 GB peak.
+  max_disparity: 260
+  window: 7
+
+analysis:
+  # im1 is the matched-photometry control; im1E and im1L vary exposure and
+  # lighting on the right eye only, with geometry and ground truth untouched.
+  right_variants: [im1, im1E, im1L]
+  # Middlebury's leaderboard metric, for an order-of-magnitude sanity check.
+  # Not like-for-like: we downsample and they do not.
+  bad_threshold: 2.0

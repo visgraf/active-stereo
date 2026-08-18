@@ -71,11 +71,33 @@ class BlockMatcher:
         c_best = cost[best, rows, cols]
 
         # Runner-up outside a +/-1 neighbourhood of the winner, for uniqueness.
-        masked = cost.copy()
-        for off in (-1, 0, 1):
+        #
+        # Masked in place and restored rather than done on a copy, which saves one
+        # cost volume. Measured, because the guess was wrong: on a 200x300 pair
+        # with D = 95 this moves the peak from 101.4 MB to 93.7 MB, not the ~46 MB
+        # the volume's own size suggests. The binding allocation is
+        # `np.argmin(cost, axis=0)` above -- reducing over the *leading* axis of a
+        # C-contiguous array is strided, and numpy buffers a full second volume to
+        # do it. Removing that needs a streaming two-pass matcher (find the winner
+        # without materialising the volume, then re-walk it for the runner-up and
+        # the parabola), which trades 2x compute for O(H*W) memory. Worth it only
+        # if full-resolution imagery is ever wanted; at downsample 3 the ~1 GB
+        # peak is not binding.
+        #
+        # The clip can make two of the three indices coincide (at best == 0 or
+        # best == D-1), so a saved slice may itself already be `inf`. Restoring in
+        # reverse order recovers the original value regardless, because the first
+        # slice saved is the last one written back.
+        saved = np.empty((3, H, W))
+        touched = []
+        for i, off in enumerate((-1, 0, 1)):
             idx = np.clip(best + off, 0, D - 1)
-            masked[idx, rows, cols] = np.inf
-        c_second = np.min(masked, axis=0)
+            touched.append(idx)
+            saved[i] = cost[idx, rows, cols]
+            cost[idx, rows, cols] = np.inf
+        c_second = np.min(cost, axis=0)
+        for i in reversed(range(3)):
+            cost[touched[i], rows, cols] = saved[i]
 
         d_sub, var = _subpixel_and_variance(cost, best, rows, cols)
 

@@ -33,7 +33,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from activestereo.geometry import depth_to_disparity
-from activestereo.scenes.base import StereoStimulus
+from activestereo.scenes.base import StereoStimulus, cross_check_disparity
 from activestereo.types import FloatArray, StereoRig
 from activestereo.utils import boxsum
 
@@ -147,17 +147,17 @@ def cross_check_occlusion(
     A left pixel is matched when the right-eye depth at its predicted
     correspondent implies the same disparity, within ``tolerance`` pixels. This is
     ground truth rather than an estimate: both depth maps come from the renderer.
-    """
-    d = depth_to_disparity(depth_left, rig)
-    H, W = depth_left.shape
-    rows, cols = np.indices((H, W))
-    target = cols - np.rint(np.nan_to_num(d, nan=0.0)).astype(int)
-    in_bounds = (target >= 0) & (target < W) & np.isfinite(d)
 
-    matched = np.zeros((H, W), dtype=bool)
-    d_right = depth_to_disparity(depth_right[rows[in_bounds], target[in_bounds]], rig)
-    matched[in_bounds] = np.abs(d_right - d[in_bounds]) <= tolerance
-    return matched
+    A depth-taking wrapper around :func:`scenes.base.cross_check_disparity`, which
+    holds the actual logic. Corpora whose ground truth is already disparity --
+    Middlebury -- call that directly rather than round-tripping through metres and
+    back, which loses precision at both ends of the range for no gain.
+    """
+    return cross_check_disparity(
+        depth_to_disparity(depth_left, rig),
+        depth_to_disparity(depth_right, rig),
+        tolerance=tolerance,
+    )
 
 
 def _read_exr_parts(path: Path) -> list[tuple[str, list[str], FloatArray]]:

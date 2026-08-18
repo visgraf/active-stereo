@@ -1,0 +1,69 @@
+# Middlebury 2014 stereo datasets -- a pointer file, not data.
+#
+# Blobs live outside the repository at $ACTIVESTEREO_DATA_ROOT (default
+# ~/datasets/middlebury2014). CLAUDE.md §2 keeps data/ for DVC pointers and
+# nothing else, and a 2 GB corpus has no business in a research repo that needs
+# to stay clonable for a decade.
+#
+#     python scripts/fetch_middlebury.py --dry-run
+#     python scripts/fetch_middlebury.py
+#
+# Citation required by Middlebury's terms of use ("We grant permission to use
+# and publish all images and disparity maps on this website", conditional on
+# citing the corresponding paper):
+#
+#   D. Scharstein, H. Hirschmüller, Y. Kitajima, G. Krathwohl, N. Nešić,
+#   X. Wang, P. Westling. High-resolution stereo datasets with subpixel-accurate
+#   ground truth. GCPR 2014.
+
+dataset:
+  name: middlebury2014
+  base_url: https://vision.middlebury.edu/stereo/data/scenes2014/zip
+  citation: scharstein2014gcpr
+
+  # `-perfect` only. The `-imperfect` variants carry up to dymax ~ 1.5 px of
+  # *vertical* disparity, which violates the rectified-rows assumption that every
+  # matcher in inference/ makes unconditionally. They are a good stressor axis
+  # for a later experiment and a bad first move.
+  variant: perfect
+
+  # Full resolution is the only thing scenes2014 distributes; the F/H/Q split
+  # belongs to MiddEval3, which does not ship the im1E / im1L lighting variants
+  # this corpus was chosen for. So we download F and downsample ourselves, which
+  # is better anyway: the decimation is ours, visible, and testable.
+  resolution: F
+
+  # PRE-REGISTERED SCENE LIST. This is the official 2014 *training* set -- the
+  # ten scenes for which MiddEval3 publishes leaderboard numbers, which is what
+  # makes the bad-2.0 sanity check possible at all.
+  #
+  # Fixed before any result was seen. Do not revise it after looking at numbers:
+  # a subset chosen post hoc from 23 candidates is p-hacking with extra steps.
+  scenes:
+    - Adirondack
+    - Jadeplant
+    - Motorcycle
+    - Piano
+    - Pipes
+    - Playroom
+    - Playtable
+    - Recycle
+    - Shelves
+    - Vintage
+
+  # SHA-256 of each `<scene>-<variant>.zip`, filled in by
+  # `scripts/fetch_middlebury.py --record-checksums` on first fetch and verified
+  # on every fetch afterwards. Empty means "never fetched"; a mismatch is a hard
+  # error, not a warning -- silently re-downloading changed upstream data would
+  # unpin every result that cites this file.
+  checksums:
+    Adirondack: df1d9fdde1780dcba9b045898324226132405b33ad1d3fde399d2ce4b619c85a
+    Jadeplant: fe7aaeeaa2e39735feee31219863c3d47ed81945f4622152af1af636347c57f5
+    Motorcycle: 86676850791286c01600cf84448db6c2bb2afee9be9ad7f32e05c4bf89ddeb26
+    Piano: dfaf03ff2fa4a054a75a8feae3f64977c9bc845455cb613b86861e8276251d0c
+    Pipes: 35866b3fc940d546886632dc40e9ca61414d4b4525b66117a473b5862a740d67
+    Playroom: 1a009444d3d286e8900f0472e629747c5c59dd2dc8a2c46673731cfefa9762fc
+    Playtable: 7c4c6a803304aacd7ea5f4610adb1a0350754aeb5dbdb49a08aa90deb021d81e
+    Recycle: 4005342bd4267983fa807687c68d29e6e04ee1774757fe7ce313ba3402d7b193
+    Shelves: 6a6c121243c03135787c32c3828baaac2fa54f048e5bd40a7cf7a95db9e6b9cf
+    Vintage: e9d74fc03159f04ea45dca645840e0f894375ce56d5fbd1d317c7fb6674121a5
