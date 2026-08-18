@@ -124,9 +124,53 @@ is whatever `calib.txt` says (94 here). Round **up** to the next multiple of 16 
 rounding down would silently truncate the search range below the scene's true
 maximum disparity.
 
+## exp004, same day
+
+Issue #6 filed with falsifiers, then the runner built and run:
+`exp004-20260818T201224-8b067fc`. Findings in
+`experiments/exp004_real_data_transfer/findings.md`. Headline: H1 and H1b
+survive, H2 falsified.
+
+**A second peek, and the actual lesson.** Smoke-testing the runner's plumbing
+printed Jadeplant's H2 verdicts — the hypothesis I had just called clean.
+Disclosed on issue #6 *before* the confirmatory run, so the timestamps prove no
+threshold moved, and the held-out set dropped from nine scenes to eight. H1b's
+falsifier stayed at an absolute count of three rather than rescaling: a threshold
+that tracks the sample size is a threshold chosen after seeing the sample.
+
+The lesson is not "peek less" — validating a loader and smoke-testing a runner
+are both necessary. It is that **diagnostic output on real data is a peek by
+default**, and has to be disclosed when it happens rather than reconstructed
+afterwards. Twice in one session.
+
+**Three things caught before numbers were visible**, which is the only reason
+they are corrections rather than retractions:
+
+- `max_disparity` was capped at 200, below Vintage (247) and Jadeplant (214). A
+  truncated search range does not announce itself: near surfaces go unmatched,
+  which reads as matcher failure. Vintage is held out, so it would have gone
+  straight into the headline. The runner now raises rather than truncating.
+- H2 compared differences of medians on a paired design. Stopped the run, changed
+  it to the median of per-scene differences, restarted.
+- `SGBMMatcher` returns a constant variance, so its H1 variance falsifier could
+  not fail. Flagged in the output so "passed" and "could not fail" are not
+  conflated.
+
+**Two bugs the suite could not have caught.** The registry validated inherited
+config keys without consuming them, so `shape` was splatted into
+`MiddleburyScene(...)`; every registry test raised before reaching a constructor,
+so it failed only with the corpus present. And `fetch_middlebury.py` wrote
+checksums once at the end, so a timeout on scene 7 of 10 lost six digests whose
+zips had already been deleted. Both fixed, both with tests.
+
+**The number I nearly missed.** Verifying the draft against exp001 surfaced that
+SGBM's occlusion hallucination goes 9.0% (RDS) → 53.6% (photographs), while block
+matching goes 79.6% → 82.6%. exp001's recommendation of SGBM rested on the value
+that moved six-fold. Not pre-registered, reported as an observation, and the most
+consequential number in the run.
+
 ## State
 
-164 tests passing, ruff and mypy clean. Nothing committed.
-
-Not done, and deliberately: exp004 itself, which needs its tracking issue and
-pre-registered falsifiers before a runner exists (`experiments/README.md`).
+165 tests passing, ruff and mypy clean. Committed on `feat/middlebury-2014` as
+`bc8e103` (corpus + contract) and `8b067fc` (exp004 runner). Not pushed, not
+merged.
