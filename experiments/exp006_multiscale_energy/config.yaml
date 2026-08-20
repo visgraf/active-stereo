@@ -1,0 +1,82 @@
+defaults: [../../configs/default.yaml]
+experiment:
+  tag: exp006
+  issue: 13
+  hypothesis: >
+    A multi-scale energy bank attacks both exp005 pathologies at once: coarse
+    scales suppress the noise-won contamination class (no false peaks within
+    their long quasi-period), fine scales restore sub-pixel precision. If that
+    lifts the decoder well clear of the chance floor on photographs (V0), the
+    questions exp005 could not test become testable: whether profile variance
+    escapes the anti-calibration (H2) and whether the exact gain invariance
+    survives end-to-end where it can be seen (H3a on RDS, H3b on photographs).
+  acceptance: >
+    V0 (validity precondition, held-out im1): median over scenes of
+    (median |delta d| / per-scene uniform-guess floor) <= 0.2 AND coverage
+    >= 0.50; if V0 fails, H2 and H3b are VOID -- not survived, not falsified.
+    H1 falsified if median |delta d| > 3 px or coverage < 0.50. H2 falsified if
+    hallucination >= 0.40 AND median per-scene high-contrast occluded/matched
+    variance ratio < 1.0. H3a (RDS gain sweep {0.5, 0.75, 1.25, 1.5}) falsified
+    if the energy error multiplier exceeds 1.1 at any gain, gated on RDS
+    validity (energy <= 2x block at gain 1.0). H3b falsified if the paired
+    im1E error multiplier >= 2.0 or coverage drop > 15 points; im1L reported.
+  protocol: >
+    Two stages, same lock as exp005. Stage A touches only the dev set: RDS,
+    the twelve exp003 chart renders, and the two already-burned photographs
+    (Adirondack, Jadeplant). The bank configuration is selected from the
+    declared grid below by the declared criterion -- computed, not hand-picked
+    -- and posted to issue #13 with Stage A numbers BEFORE any held-out scene
+    is read. stage_b_unlocked flips in the commit accompanying that comment.
+
+# Readout constants inherited from exp005 (#12) unless dev evidence moves them.
+readout:
+  flatness: 0.05
+  centroid_halfwidth: 2
+
+# The declared, closed dev grid (issue #13). Selection criterion: maximise the
+# median chance-floor margin (floor / error) over the two dev photographs;
+# tiebreak by RDS error ratio vs block.
+grid:
+  scale_sets:
+    - [[4, 2], [8, 4], [16, 8], [32, 16]]
+    - [[8, 4], [16, 8], [32, 16]]
+    - [[4, 2], [8, 4], [16, 8], [32, 16], [48, 24]]
+  combine: [product, sum]
+  floor: [0.001, 0.01]
+
+stage_a:
+  rds:
+    shape: [240, 320]
+    depth_fn: disk
+    near: 0.9
+    far: 1.6
+    radius: 0.4
+    dot_size: 2
+    density: 0.5
+    max_disparity: 48
+    window: 7
+    seeds: [0, 1, 2]          # grid evaluation; the selected config reruns on 5
+    final_seeds: [0, 1, 2, 3, 4]
+  rig:
+    baseline: 0.064
+    focal_px: 800.0
+    vergence_deg: 1.467
+  gain_sweep: [0.5, 0.75, 1.25, 1.5]
+  charts_root: results/stimuli/chart
+  chart_conditions: [ambient_p0, key_p0, grazing_p0]   # one per lighting rig
+  dev_photos: [Adirondack, Jadeplant]
+  downsample: 3
+
+stage_b:
+  stage_b_unlocked: false
+  # Selected bank configuration -- WRITTEN AT THE GATE from Stage A's declared
+  # criterion, in the same commit that flips the lock. Null until then.
+  selected: null
+  downsample: 3
+  max_disparity_ceiling: 260
+  contrast_window: 7
+  right_variants: [im1, im1E, im1L]
+  held_out: [Motorcycle, Piano, Pipes, Playroom, Playtable, Recycle, Shelves, Vintage]
+  chance_floor_seed: 20260820
+  exp004_run: results/exp004-20260818T201224-8b067fc
+  exp005_run: results/exp005b-20260820T225844-83d48ab
