@@ -68,10 +68,16 @@ stage_a:
   downsample: 3
 
 stage_b:
-  stage_b_unlocked: false
-  # Selected bank configuration -- WRITTEN AT THE GATE from Stage A's declared
-  # criterion, in the same commit that flips the lock. Null until then.
-  selected: null
+  # Gate passed: Stage A numbers and the computed selection posted to issue #13
+  # (issuecomment-5363411475) from run exp006a-20260820T233759-4ea8400 before
+  # any held-out scene was read.
+  stage_b_unlocked: true
+  # Selected at the gate by the declared criterion (max median chance-floor
+  # margin over the dev photographs, 17.98x; tiebreak RDS ratio 0.104).
+  selected:
+    scales: [[4, 2], [8, 4], [16, 8], [32, 16], [48, 24]]
+    combine: product
+    floor: 0.001
   downsample: 3
   max_disparity_ceiling: 260
   contrast_window: 7
