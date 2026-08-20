@@ -65,8 +65,9 @@ stage_a:
     seeds: [0, 1, 2, 3, 4]
 
 stage_b:
-  # Flipped to true only in the same commit as the #12 gate comment.
-  stage_b_unlocked: false
+  # Unlocked by the commit accompanying the gate comment:
+  # https://github.com/visgraf/active-stereo/issues/12#issuecomment-5363078374
+  stage_b_unlocked: true
   downsample: 3
   max_disparity_ceiling: 260
   contrast_window: 7
