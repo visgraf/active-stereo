@@ -1,0 +1,78 @@
+defaults: [../../configs/default.yaml]
+experiment:
+  tag: exp005
+  issue: 12
+  hypothesis: >
+    H1 (precision; adjudicates issue #1): the population readout is precise even
+    though exp002 showed the per-pixel argmax scatters -- the profile centroid
+    recovers what the argmax loses. H2 (calibration; the payoff): in
+    half-occlusions the decoder either declines or is not anti-calibrated,
+    because a pixel with no correspondent produces a flat or multimodal profile
+    whose second moment is large -- unlike cost curvature, which exp004 showed
+    reads a sharp wrong minimum as precision (0.12x in the high-contrast cell).
+    H3 (photometry): divisive normalisation cancels a global interocular gain in
+    value, variance and the refusal decision, so exposure change (im1E) should
+    cost far less than block matching's x44.1 at -47.6 coverage points.
+  acceptance: >
+    H1a falsified if median |delta d| on answered scorable RDS pixels exceeds
+    2x BlockMatcher(d48,w7) on the same seeds, or coverage < 0.90. H1b falsified
+    if the fraction of answered pixels within +/-1 px of d0 on exp002's stimulus
+    at gain 1.0 is <= 0.58 (no better than the raw argmax); >= 0.95 resolves
+    issue #1 via its option (a). H2 falsified if hallucination >= 0.40 AND the
+    median per-scene high-contrast occluded/matched variance ratio < 1.0
+    (median of per-scene ratios, never a ratio of pooled medians). H3 falsified
+    if the paired per-scene median error multiplier on im1E is >= 4x, or the
+    coverage drop exceeds 25 points. im1L reported without a falsifier.
+  protocol: >
+    Two stages with a hard gate. Stage A touches only RDS and synthetic
+    stimuli. The readout constants below, and Stage A's numbers, are posted as
+    a comment on issue #12 BEFORE any Middlebury scene is read; Stage B refuses
+    to run while stage_b_unlocked is false, and the flip to true is committed
+    together with the gate comment so the order is auditable.
+
+# Readout constants -- fixed from unit-test and RDS work only (issue #12's
+# two-stage pre-registration). The refusal rule is a RATIO (refined from the
+# issue's absolute-floor sketch, before any decoder execution): refuse where
+# baseline-subtracted mass <= flatness * raw mass, so that the refusal decision
+# is gain-invariant along with the value and variance.
+readout:
+  flatness: 0.05
+  centroid_halfwidth: 2
+
+stage_a:
+  # H1a: exp001's stimulus and rig, verbatim.
+  rds:
+    shape: [240, 320]
+    depth_fn: disk
+    near: 0.9
+    far: 1.6
+    radius: 0.4
+    dot_size: 2
+    density: 0.5
+    max_disparity: 48
+    window: 7
+    seeds: [0, 1, 2, 3, 4]
+  rig:
+    baseline: 0.064
+    focal_px: 800.0
+    vergence_deg: 1.467
+  # H1b: exp002's stimulus, verbatim (its run.py is the reference).
+  exp002_stimulus:
+    shape: [64, 96]
+    disparity: 8
+    noise: 0.01
+    max_disparity: 16
+    seeds: [0, 1, 2, 3, 4]
+
+stage_b:
+  # Flipped to true only in the same commit as the #12 gate comment.
+  stage_b_unlocked: false
+  downsample: 3
+  max_disparity_ceiling: 260
+  contrast_window: 7
+  right_variants: [im1, im1E, im1L]
+  held_out: [Motorcycle, Piano, Pipes, Playroom, Playtable, Recycle, Shelves, Vintage]
+  seen: [Adirondack, Jadeplant]
+  # Context columns for block/sgbm come from exp004's pinned run -- read, never
+  # recomputed, so this experiment cannot drift from that record.
+  exp004_run: results/exp004-20260818T201224-8b067fc
