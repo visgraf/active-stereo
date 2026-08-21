@@ -1,0 +1,56 @@
+# Middlebury Stereo Evaluation v3 (MiddEval3) -- a pointer file, not data.
+#
+# Blobs live outside the repository at $ACTIVESTEREO_MIDDEVAL3_ROOT (default
+# ~/datasets/middeval3). CLAUDE.md §2 keeps data/ for DVC pointers only.
+#
+#     python scripts/fetch_middeval3.py --dry-run
+#     python scripts/fetch_middeval3.py --record-checksums     # first fetch
+#     python scripts/fetch_middeval3.py                        # verifies
+#
+# This is the *evaluation* distribution, distinct from the scenes2014 corpus
+# that configs/dataset/middlebury2014.yaml fetches: 15 training pairs with
+# ground truth and 15 test pairs without, at quarter resolution, packaged in
+# the SDK's own tree layout (MiddEval3/trainingQ/<Scene>/...). Unlike
+# scenes2014-perfect, these pairs have IMPERFECT rectification -- residual
+# y-disparities are part of the benchmark, not a defect (GTy carries their
+# ground truth). Every matcher in inference/ assumes epipolar rows, so this
+# corpus measures that assumption's cost rather than avoiding it.
+#
+# Quarter resolution only, deliberately: it fits every matcher in memory, it
+# is the regime exp004/exp006 validated (downsample ~3-4 of the same source
+# imagery), and it shrinks the y-disparity residuals 4x relative to full
+# resolution. Half/full are a later decision, not a config edit here.
+#
+# Citation required by Middlebury's terms of use:
+#
+#   D. Scharstein, H. Hirschmüller, Y. Kitajima, G. Krathwohl, N. Nešić,
+#   X. Wang, P. Westling. High-resolution stereo datasets with subpixel-accurate
+#   ground truth. GCPR 2014.
+
+dataset:
+  name: middeval3
+  base_url: https://vision.middlebury.edu/stereo/submit3/zip
+  citation: scharstein2014gcpr
+
+  # All archives extract into one shared MiddEval3/ tree, which is the
+  # layout the SDK's runeval expects and the reason extraction is merged
+  # rather than per-archive. The two alg* archives are the benchmark's own
+  # precomputed SGM and Census results at Q: scoring them with the SDK and
+  # comparing against their published training numbers is the sanity check
+  # that our evaluation pipeline is wired correctly, before any of our
+  # numbers are read.
+  files:
+    - MiddEval3-SDK-1.6.zip # evaluator source, scripts, sample method
+    - MiddEval3-data-Q.zip # im0/im1/calib for trainingQ + testQ
+    - MiddEval3-GT0-Q.zip # disp0GT.pfm + masks, training only
+    - MiddEval3-GTy-Q.zip # y-disparity ground truth, training only
+    - MiddEval3-algSGM-Q.zip # reference SGM results, evaluator anchor
+    - MiddEval3-algCENS-Q.zip # reference Census results, evaluator anchor
+
+  checksums:
+    MiddEval3-GT0-Q.zip: 489b6a4015951a3c865aa54c0f37dcb648b5d0efad8019264e22499cef35ca45
+    MiddEval3-GTy-Q.zip: 65adf3aeecad9709852651fcfef3587ce31d477f36f607155bc31aa9dcd20c91
+    MiddEval3-SDK-1.6.zip: f9ee9eec52826d00c55ff2805e8751efcb25efc22cbf9c76d79c941f7f370095
+    MiddEval3-algCENS-Q.zip: eb3c5dab5d57c980d39cf9925b6de519ad9fbc1fa3970bddb5094352b3a3f782
+    MiddEval3-algSGM-Q.zip: 2e6fee009d471f9445e2beaeb7ecaf4ae184ca30d80b30da1c3235ea10182c1b
+    MiddEval3-data-Q.zip: a1411f283b523541e0d2e8b3a1dd6618974a0e539aea0122490791a041fffc09

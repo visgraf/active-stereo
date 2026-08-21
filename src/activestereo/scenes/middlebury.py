@@ -128,6 +128,29 @@ def read_pfm(path: str | Path) -> FloatArray:
     return np.asarray(data[::-1], dtype=float)
 
 
+def write_pfm(path: str | Path, array: FloatArray) -> None:
+    """Write a single-channel PFM, the format MiddEval3 submissions require.
+
+    The inverse of :func:`read_pfm`, and the second half of the same boundary:
+    ``nan`` is this framework's invalid marker (CLAUDE.md §3), ``inf`` is what
+    Middlebury's tools read, so the conversion happens here, once, on the way
+    out -- exactly as :class:`MiddleburyScene` converts ``inf`` to ``nan`` on
+    the way in.
+
+    Scanlines are stored bottom-up (hence the flip) as little-endian float32
+    with the conventional scale of ``-1``; the sign carries the endianness and
+    the magnitude carries nothing.
+    """
+    a = np.asarray(array, dtype=float)
+    if a.ndim != 2:
+        raise ValueError(f"PFM disparity must be 2-D, got shape {a.shape}")
+    a = np.where(np.isnan(a), np.inf, a)
+    data = np.asarray(a[::-1], dtype="<f4")
+    with Path(path).open("wb") as f:
+        f.write(f"Pf\n{a.shape[1]} {a.shape[0]}\n-1\n".encode("ascii"))
+        f.write(data.tobytes())
+
+
 def read_calib(path: str | Path) -> dict[str, Any]:
     """Parse ``calib.txt`` into a flat dict.
 
