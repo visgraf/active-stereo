@@ -10,6 +10,8 @@ Usage
     python scripts/demo_active_stereo.py --scene disk --matcher block
     python scripts/demo_active_stereo.py --scene staircase --matcher sgbm --plot
     python scripts/demo_active_stereo.py --render data/scenes/office_01
+    python scripts/demo_active_stereo.py --middlebury Motorcycle --matcher energy --plot
+    python scripts/demo_active_stereo.py --middlebury Piano --right-variant im1E
 """
 
 from __future__ import annotations
@@ -51,6 +53,20 @@ def build_matcher(kind: str, max_disparity: int, window: int):
         from activestereo.inference.sgbm import SGBMMatcher
 
         return SGBMMatcher(max_disparity=max_disparity, block_size=window)
+    if kind == "energy":
+        from activestereo.encoding import MultiScaleEnergyEncoder
+        from activestereo.inference import EnergyDecoder
+
+        # exp006's registered selection (config stage_b.selected + readout;
+        # run exp006a-20260820T233759-4ea8400). Validated on the Middlebury
+        # corpus, not retuned here.
+        encoder = MultiScaleEnergyEncoder(
+            np.arange(0, max_disparity + 1, dtype=float),
+            scales=((4, 2), (8, 4), (16, 8), (32, 16), (48, 24)),
+            combine="product",
+            floor=1e-3,
+        )
+        return EnergyDecoder(encoder=encoder, flatness=0.05, centroid_halfwidth=2)
     raise ValueError(f"unknown matcher: {kind}")
 
 
@@ -143,9 +159,30 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--scene", default="disk", choices=sorted(SCENES))
     p.add_argument("--render", type=Path, default=None, help="Blender render dir instead of RDS")
-    p.add_argument("--matcher", default="block", choices=["block", "sgbm"])
+    p.add_argument(
+        "--middlebury",
+        default=None,
+        help="Middlebury 2014 scene name (e.g. Motorcycle) or a scene directory",
+    )
+    p.add_argument("--matcher", default="block", choices=["block", "sgbm", "energy"])
     p.add_argument("--shape", type=int, nargs=2, default=[240, 320])
-    p.add_argument("--max-disparity", type=int, default=48)  # covers disk at 0.7 m
+    # None means "resolve per source": scene.ndisp for Middlebury (the spread is
+    # wide -- Shelves 80, Vintage 247 at downsample 3 -- and a fixed default
+    # truncates the search range in a way that reads as matcher failure), 48 for
+    # the RDS scenes (covers disk at 0.7 m). An explicit value always wins.
+    p.add_argument("--max-disparity", type=int, default=None)
+    p.add_argument(
+        "--downsample",
+        type=int,
+        default=3,
+        help="Middlebury only. Odd factors avoid a half-pixel offset (ADR-0012).",
+    )
+    p.add_argument(
+        "--right-variant",
+        default="im1",
+        choices=["im1", "im1E", "im1L"],
+        help="Middlebury only: im1E varies exposure, im1L lighting; geometry is fixed",
+    )
     p.add_argument("--window", type=int, default=7)
     p.add_argument("--dot-size", type=int, default=2)
     p.add_argument("--noise", type=float, default=0.0)
@@ -158,8 +195,28 @@ def main() -> int:
 
     rng = np.random.default_rng(args.seed)
     shape = tuple(args.shape)
+    max_disparity = args.max_disparity
 
-    if args.render is not None:
+    if args.middlebury is not None:
+        from activestereo.scenes.middlebury import MiddleburyScene
+        from activestereo.scenes.registry import data_root
+
+        candidate = Path(args.middlebury)
+        directory = candidate if candidate.is_dir() else data_root() / f"{args.middlebury}-perfect"
+        if not directory.is_dir():
+            raise SystemExit(
+                f"not a Middlebury scene directory: {directory}\n"
+                "Run: python scripts/fetch_middlebury.py"
+            )
+        scene = MiddleburyScene(directory, downsample=args.downsample)
+        rig = scene.rig
+        stim = scene.stimulus(args.right_variant)
+        scene_name = scene.name
+        if max_disparity is None:
+            # ndisp, not ndisp - 1: BlockMatcher rejects a winner at the last
+            # index of its search range (see MiddleburyScene.ndisp).
+            max_disparity = scene.ndisp
+    elif args.render is not None:
         from activestereo.scenes.blender import BlenderRenderScene
 
         # BlenderRenderScene resolves the rig and the depth convention from the
@@ -189,9 +246,16 @@ def main() -> int:
         stim = scene.render(rig, rng)
         scene_name = scene.name
 
-    ctx = RunContext(tag="demo", seed=args.seed, config=vars(args) | {"scene": scene_name})
+    if max_disparity is None:
+        max_disparity = 48  # covers disk at 0.7 m
 
-    matcher = build_matcher(args.matcher, args.max_disparity, args.window)
+    ctx = RunContext(
+        tag="demo",
+        seed=args.seed,
+        config=vars(args) | {"scene": scene_name, "max_disparity": max_disparity},
+    )
+
+    matcher = build_matcher(args.matcher, max_disparity, args.window)
     disparity = matcher.match(stim.left, stim.right)  # L3
     depth = scale_to_depth(disparity, stim.rig)  # L4
     depth = confine_to_fovea(depth, coefficient=args.foveal_coefficient)  # L6 remainder
@@ -238,7 +302,7 @@ def _plot(stim, disparity, depth, loop, path) -> None:
     fig, ax = plt.subplots(2, 3, figsize=(13, 7))
 
     panels = [
-        (ax[0, 0], stim.left, "gray", "left (monocularly random)", False),
+        (ax[0, 0], stim.left, "gray", "left", False),
         (ax[0, 1], stim.right, "gray", "right", False),
         (ax[0, 2], stim.matched, "gray", "ground-truth matched", False),
         (ax[1, 0], stim.disparity, "viridis", "true disparity (px)", True),
