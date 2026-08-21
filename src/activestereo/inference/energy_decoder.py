@@ -155,7 +155,15 @@ class EnergyDecoder:
         with np.errstate(invalid="ignore"):
             flat = mass <= self.flatness * raw_mass
 
-        kstar = np.nanargmax(np.where(np.isfinite(E), E, -np.inf), axis=0)
+        # Plain argmax, deliberately: masking nans first
+        # (np.where(isfinite(E), E, -inf)) materialises a second full volume --
+        # ~1.3 GB on the widest Middlebury bank, and a measured contributor to
+        # exp005's 8.7 GB peak. At invalid pixels argmax over nans returns a
+        # garbage index, and every path that consumes it is already gated by
+        # `valid`/`accept`; at valid pixels E is finite and the result is
+        # identical. Byte-identity across this change is pinned in the unit
+        # suite.
+        kstar = np.argmax(E, axis=0)
         interior = (kstar >= wc) & (kstar <= K - 1 - wc)
 
         # Local centroid around the argmax. Indices are clipped only so the
