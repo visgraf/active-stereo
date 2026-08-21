@@ -150,7 +150,40 @@ are already known, by someone who knew what he was looking for. If it survives a
 proper pre-registered test it revises exp003's stated conclusion — and that test
 does not exist yet.
 
-## What it all adds up to
+## Postscript: a second matcher family crossed the ladder, and confirmed the worst of it
+
+*(Added 2026-08-20. Unlike the rest of this synthesis, the numbers here are not
+re-scored — they are registered results from
+[exp006's findings](../../experiments/exp006_multiscale_energy/findings.md),
+which used the same `metrics` module this synthesis is built on, under a
+pre-registered falsifier with a validity gate. See the
+[energy-pathway briefing](exp005-exp006-energy-pathway.md).)*
+
+When this synthesis was written, every number in it came from one matcher
+family: winner-take-all cost minimisation, with confidence read from cost
+curvature. That left a live hypothesis — perhaps the anti-calibration was a
+defect of *that readout*, and a population-profile variance would escape it.
+
+The energy pathway then crossed the same ladder. On random dots it is now the
+most precise matcher we have (0.0074 px, 10× better than block). On photographs
+it reaches block matching's league. And in the high-contrast occluded cell —
+the cell this synthesis flagged as the dangerous one — its profile-shape
+variance came back **0.25×**, inverted in seven of eight scenes, in its own
+convention and matcher but with the same sign and the same low/high asymmetry
+(low-contrast occlusions stay safe at 1.28×).
+
+Two consequences for the table above:
+
+- **The anti-calibration row is no longer about curvature.** Two genuinely
+  different confidence mechanisms invert in the same cell; the sharp-wrong
+  evidence at an edge-adjacent half-occlusion is sharp for *any* per-pixel
+  statistic computed from it. The remedy list in the next section — structural,
+  not a better formula — is strengthened, not changed.
+- **Hallucination is not bounded by matcher quality.** The multi-scale bank
+  answers 91% of half-occlusions, *more* than block matching's 80–86%, because
+  the coarse-scale pooling that makes it accurate also carries support across
+  occlusion boundaries. Accuracy and occlusion honesty are not the same axis,
+  and improving one bought us nothing on the other.
 
 1. **Some results are about the algorithm.** Confident filling of half-occlusions
    held at 80–86% across every stimulus we have.

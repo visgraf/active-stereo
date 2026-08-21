@@ -1,4 +1,4 @@
-# Synthetic → rendered → real · four slides
+# Synthetic → rendered → real · five slides
 
 A **synthesis, not an experiment.** No hypotheses, no falsifiers. It re-scores
 exp001, exp003 and exp004's stimuli through one implementation
@@ -177,6 +177,41 @@ high-contrast cell it was already inverted. That test needs its own issue.
    [#7](https://github.com/visgraf/active-stereo/issues/7) left-right consistency,
    [#8](https://github.com/visgraf/active-stereo/issues/8) a variance proxy that
    can express "no correspondent exists".
+
+---
+
+## Slide 5 — Postscript: a second matcher family crossed the ladder
+
+*(Added 2026-08-20. These are registered results from exp006's findings — same
+`metrics` module, pre-registered falsifiers, a validity gate — not re-scored
+here. Briefing: `docs/briefings/exp005-exp006-energy-pathway.md`.)*
+
+Everything on the previous slides came from one matcher family: cost
+minimisation, confidence from cost curvature. That left a live hypothesis —
+maybe the anti-calibration was the *readout's* fault, and a population-profile
+variance would escape it. The energy pathway (exp005 → exp006) then crossed the
+same ladder:
+
+| | random dots | photographs |
+|---|---|---|
+| median error vs block | **0.10×** (0.0074 px) | ~1.4× (0.72 px vs 0.52 px) |
+| error under interocular gain sweep | ×1.0000 (block: ×1.02–1.07) | ×1.04 exposure (block: ×44) |
+| half-occlusions answered | — | **91%** (block: 83%) |
+| hi-contrast occluded / matched variance | — | **0.25×**, inverted in 7/8 scenes |
+
+Two additions to the story:
+
+1. **The anti-calibration is in the evidence, not the readout.** A variance
+   built to express "the evidence is spread everywhere" inverts in the same
+   cell, with the same low/high contrast asymmetry, as cost curvature. The
+   sharp-wrong evidence beside an edge is sharp for any per-pixel statistic.
+   The remedies stay structural: left-right consistency (#7), an occlusion
+   model — not a better formula (#8).
+2. **Accuracy and occlusion honesty are different axes.** The multi-scale
+   pooling that lifted the pathway from chance to block-level accuracy is the
+   same pooling that carries support across occlusion boundaries — it answers
+   *more* half-occlusions than any matcher measured, not fewer. Improving one
+   axis bought nothing on the other.
 
 ---
 
