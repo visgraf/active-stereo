@@ -2,5 +2,6 @@
 
 from activestereo.inference.base import DisparityMatcher
 from activestereo.inference.block import BlockMatcher
+from activestereo.inference.energy_decoder import EnergyDecoder
 
-__all__ = ["BlockMatcher", "DisparityMatcher"]
+__all__ = ["BlockMatcher", "DisparityMatcher", "EnergyDecoder"]
