@@ -48,8 +48,10 @@ Each boundary is a `Protocol` — a declared contract, not a base class:
 | `DisparityMatcher` | L3 | stereo pair → `Estimate` in **pixels** |
 
 The payoff is concrete: adding a matcher means implementing `DisparityMatcher` and
-adding a line to a config. Nothing else changes. Four experiments have now been
-run across three stimulus families by exactly this substitution.
+adding a line to a config. Nothing else changes. Six experiments have now been
+run across three stimulus families by exactly this substitution — most recently
+exp006, where swapping a single-scale encoder for a multi-scale bank behind the
+same decoder was literally one constructor argument.
 
 ## The three closures
 
@@ -119,14 +121,22 @@ uncertainty after the fact is impossible — the information that produced it (c
 curvature, filter innovation) is local to the estimator and gone by the time a
 caller asks.
 
-**And it has a hole, which four experiments took to find.** ADR-0005 requires a
-variance; it never required that variance to be *informative*, or *correct*.
-`SGBMMatcher` returns a constant. And the block matcher's curvature-derived
-variance turns out to be [anti-calibrated in half-occlusions](exp004-real-data-transfer.md) —
-most confident exactly where it has no correspondent at all. Both are open issues
+**And it has a hole, which four experiments took to find and two more made
+worse.** ADR-0005 requires a variance; it never required that variance to be
+*informative*, or *correct*. `SGBMMatcher` returns a constant. The block
+matcher's curvature-derived variance turns out to be
+[anti-calibrated in half-occlusions](exp004-real-data-transfer.md) — most
+confident exactly where it has no correspondent at all. And when a
+[population-profile readout built specifically to escape that](exp005-exp006-energy-pathway.md)
+was finally tested in a valid regime, it inverted the same way: the
+anti-calibration is a property of the *evidence* at half-occlusions, not of any
+particular readout, which is why the open remedies are structural
+([#7](https://github.com/visgraf/active-stereo/issues/7) left-right
+consistency) rather than a better variance formula
 ([#8](https://github.com/visgraf/active-stereo/issues/8),
-[#9](https://github.com/visgraf/active-stereo/issues/9)); neither is a bug in the
-ADR so much as a demonstration that a contract can be satisfied vacuously.
+[#9](https://github.com/visgraf/active-stereo/issues/9)). None of this is a bug
+in the ADR so much as a demonstration that a contract can be satisfied
+vacuously.
 
 ## The stimulus ladder
 
@@ -160,17 +170,17 @@ This is the part a specification will not tell you.
 |---|---|
 | L1 → L3 → L4 | **exercised by every experiment** (exp001, exp003, exp004) |
 | L4 → L5 → L6 → L1 | closes in `scripts/demo_active_stereo.py`, and in the integration tests |
-| **L2 → L3** | **does not exist** |
+| L2 → L3 | **exists and is validated on photographs** (exp005, exp006) |
 | L4 cue fusion with >1 cue | never run outside unit tests |
 
-**L2 is an island.** Outside its own unit tests, `GaborEnergyEncoder` is consumed
-by exactly one thing: exp002's own runner. Nothing in `inference/` reads a
-response volume.
-The energy model is validated in isolation and is not part of the pipeline,
-because connecting it needs a decoder — something that turns `(K, H, W)` of
-population response into an `Estimate` with a variance — and that does not exist
-yet. Until it does, exp002's result is a statement about a component, not about
-the system.
+**L2 was an island, and no longer is.** `inference.EnergyDecoder` reads a
+`(K, H, W)` response volume from any `DisparityEncoder` and satisfies
+`DisparityMatcher`, so the energy model rides every harness the other matchers
+do. It took two experiments to make that connection *work*: the single-scale
+encoder behind it was at the chance floor on photographs (exp005), and the
+multi-scale bank that replaced it reaches block-matching accuracy with an exact
+gain invariance block matching lacks (exp006). The
+[energy-pathway briefing](exp005-exp006-energy-pathway.md) tells that story.
 
 **`fuse_mle` has only ever had one cue.** The MLE fusion at L4 is implemented,
 tested and correct, and outside the test suite nothing calls it at all — no
@@ -185,7 +195,7 @@ this section.
 
 ## Where the findings have landed
 
-Four experiments, and the through-line is not about accuracy:
+Six experiments, and the through-line is not about accuracy:
 
 1. **Declining matters more than matching.** A matcher that returns `nan` where
    there is no correspondent is telling the truth; one that returns a number
@@ -197,6 +207,13 @@ Four experiments, and the through-line is not about accuracy:
    ([exp003](exp003-appearance-and-matching.md))
 4. **On photographs it is worse than that** — the confidence ordering inverts.
    ([exp004](exp004-real-data-transfer.md))
+5. **A component validated in isolation can be at chance in the system** — and a
+   population readout cannot rescue an encoder whose passband carries no
+   evidence. ([exp005](exp005-exp006-energy-pathway.md))
+6. **The inversion is a property of the evidence, not the readout.** A
+   multi-scale bank reaches block-matching accuracy on photographs, and its
+   profile-shape variance inverts at high-contrast occlusions exactly as cost
+   curvature does. ([exp006](exp005-exp006-energy-pathway.md))
 
 Every one of those is a statement about **uncertainty**, not about depth error.
 That is the architecture doing its job: because `Estimate` forced variance to be

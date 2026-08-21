@@ -161,7 +161,11 @@ and in four experiments nobody had checked.
 2. **Cost curvature cannot be rescued by tuning.** It answers "how well localised
    is this match, *given that a match exists*". The question that matters here is
    whether one exists at all, and curvature has no way to express it.
-   [#8](https://github.com/visgraf/active-stereo/issues/8)
+   [#8](https://github.com/visgraf/active-stereo/issues/8) *(Later confirmed
+   stronger than stated: exp006 tested a population-profile variance — a readout
+   built to express exactly that — and it
+   [inverted the same way](exp005-exp006-energy-pathway.md). The anti-calibration
+   is in the evidence, not the readout.)*
 3. **A constant is not an uncertainty model.**
    [#9](https://github.com/visgraf/active-stereo/issues/9)
 4. **For the paper**, one word changes and it matters. Not "poorly calibrated for

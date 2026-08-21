@@ -1,13 +1,21 @@
 # exp002 — What an energy model is, and the half of it that survived
 
 **Record of record:** [`experiments/exp002_energy_model_validation/findings.md`](../../experiments/exp002_energy_model_validation/findings.md)
-· **Issue:** [#1](https://github.com/visgraf/active-stereo/issues/1) *(still open)*
+· **Issue:** [#1](https://github.com/visgraf/active-stereo/issues/1)
 · **Run:** `exp002-20260815T200128-965a3ad`
 
 > **This experiment ends in a question, not a conclusion.** One of its two
 > falsifiers failed, and the decision about what that means was deliberately left
 > to the researcher rather than resolved by adjusting parameters until the number
-> turned green. That decision is still open.
+> turned green.
+>
+> **Update (2026-08-20): the question is answered — option (c).** exp005 and
+> exp006 showed the scatter was a genuine limitation of a single-frequency
+> encoder, resolved by a multi-scale bank rather than by restating the criterion
+> or widening a window. The
+> [energy-pathway briefing](exp005-exp006-energy-pathway.md) carries the story;
+> the sections below are left as written, because the discipline of *not*
+> resolving this by tuning is what made the later answer trustworthy.
 
 ---
 
@@ -156,7 +164,15 @@ Option (c) is worth dwelling on, because it is the one that is not a fix. If the
 scatter is what a single scale genuinely gives, then the honest response is to
 report that, not to widen a window until the number complies.
 
-Issue #1 remains open on this.
+**Resolution (added 2026-08-20).** It was (c), and the evidence is stronger than
+anything available when the options were written. exp005 wrapped this exact
+encoder — parameters frozen — in a decoder and measured it end-to-end: the
+readout is unbiased where the true peak wins, so (a)'s population-mean framing
+is true but does not rescue per-pixel precision; and on photographs the single
+scale sat at 91–96% of the uniform-guess floor, which no pooling window (b)
+plausibly recovers. exp006 replaced the one scale with a bank of five and the
+same readout dropped to 3.5% of the floor. The scatter was what one scale
+genuinely gives.
 
 ## What this test does not rule out
 
@@ -178,6 +194,8 @@ Two more, both structural:
   says nothing about rendered or real imagery.
 
 ## Where this leaves L2
+
+*(As written in August 2026; the gap described here has since been closed.)*
 
 **Nothing in the pipeline consumes this encoder.** Outside its own unit tests,
 `GaborEnergyEncoder` is imported by exactly one file: exp002's own runner. No
@@ -202,6 +220,14 @@ uncertainty from cost curvature — the very quantity
 half-occlusions. A decoder reading peak *sharpness relative to the whole profile*
 would be attacking that problem from a different direction than
 [#8](https://github.com/visgraf/active-stereo/issues/8) proposes.
+
+**What became of both ideas** ([exp005 + exp006](exp005-exp006-energy-pathway.md)):
+the decoder exists, the pathway beats block matching under interocular gain
+change exactly as the invariance argument predicted (×1.04 vs ×44 under exposure
+change) — and the profile-shape variance, tested at last in a valid regime,
+turned out to invert in high-contrast occlusions just as curvature does. The
+first hope was vindicated; the second was falsified, and the falsification is
+the more valuable result.
 
 ## Reproducing
 
