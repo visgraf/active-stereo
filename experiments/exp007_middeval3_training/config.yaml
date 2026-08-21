@@ -1,0 +1,67 @@
+# exp007 -- Middlebury Stereo Evaluation v3, training-set placement.
+#
+# A measurement, not a hypothesis test: where do this project's three matchers
+# stand on the field's standard ruler? Scoring is the benchmark's own SDK
+# (evaldisp via runeval), never our metrics module, so every number is
+# leaderboard-comparable by construction. Training set only -- the
+# once-per-method public test submission is a separate, later decision.
+#
+# Registered expectations (posted to the tracking issue BEFORE the first
+# evaluation of our results; the SGM/CENS anchor scoring is exempt, since
+# those are the benchmark's own precomputed results):
+#
+#   E1: block dense bad2.0(official) lands in 30-45%.
+#   E2: energy dense bad2.0 is WORSE than block's despite equal medians --
+#       the threshold metric charges energy's gross-outlier tail in full.
+#   E3: on MotorcycleE and PianoL (the photometric pairs), energy beats
+#       block -- the gain-invariance prediction on pairs the benchmark
+#       itself designated.
+#   E4: the sparse-vs-dense gap (invalid%) is larger for energy than block.
+
+resolution: Q
+
+# The SDK tree; blobs outside the repository, CLAUDE.md §2.
+# Resolved as $ACTIVESTEREO_MIDDEVAL3_ROOT if set.
+root: ~/datasets/middeval3
+
+# Method names as they appear in disp0<name>.pfm within the SDK tree.
+# Convention mirrors the benchmark's own SGM/SGM_s pairing: plain name =
+# dense (background-filled, declared postprocess), _s suffix = sparse (raw,
+# refusals as INFINITY).
+#
+# Constants are NOT free knobs. Block and SGBM are the exp001/exp004
+# reference settings; energy is exp006's registered selection
+# (run exp006a-20260820T233759-4ea8400) plus the exp005 readout. The
+# benchmark's training feedback loop is unlimited, but tuning against it
+# would make these numbers a fit rather than a measurement -- so the config
+# is closed at what previous experiments froze. Per-pair ndisp from calib.txt
+# is legitimate input under the benchmark's rules ("constant parameter
+# settings (except for disparity ranges)").
+methods:
+  block:
+    name: ASblk
+    window: 7
+  sgbm:
+    name: ASsgbm
+    window: 7
+  energy:
+    name: ASnrg
+    scales: [[4, 2], [8, 4], [16, 8], [32, 16], [48, 24]]
+    combine: product
+    floor: 0.001
+    flatness: 0.05
+    centroid_halfwidth: 2
+
+# Error thresholds passed to runeval, in QUARTER-resolution pixels. The
+# official table evaluates at full resolution, so t=0.5 here approximates the
+# official bad2.0 and t=1.0 approximates bad4.0 (SDK README: "a threshold of
+# 2.0 at full resolution would correspond to a threshold of 0.5 at quarter
+# resolution", with small residual differences from evaluating against the
+# Q-size ground truth).
+thresholds: [0.5, 1.0]
+
+# The benchmark's own precomputed reference results, scored on the identical
+# local ruler. Their published training-table numbers anchor our local
+# evaluation to the online table; the internal comparison (ours vs theirs)
+# is exact because it shares masks, ground truth, and thresholds.
+anchors: [SGM, SGM_s, CENS, CENS_s]

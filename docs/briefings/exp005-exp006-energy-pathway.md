@@ -199,6 +199,19 @@ experiments now point at the same door.
 - Nothing here tests 2-D oriented banks or vertical disparity — one axis of
   novelty per experiment, and exp006's was scale.
 
+## Postscript (2026-08-21): placed on the field's ruler
+
+exp007 ran all three matchers through the Middlebury v3 evaluation's own SDK
+on its 15 training pairs (issue
+[#18](https://github.com/visgraf/active-stereo/issues/18), run
+`exp007-20260821T230639-65476a0`). The pathway is nowhere near the
+leaderboard (52.9% dense bad2.0-equivalent vs ~5–7% SOTA) — but on
+**MotorcycleE**, the benchmark's own exposure-changed pair, it scores
+identically to its matched-exposure Motorcycle while block matching collapses
+from 42% to 89%. The exact gain invariance is the one property of this
+pathway a leaderboard can see. The record of record is
+[`experiments/exp007_middeval3_training/findings.md`](../../experiments/exp007_middeval3_training/findings.md).
+
 ## Reproducing
 
 ```bash
