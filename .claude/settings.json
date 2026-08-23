@@ -66,11 +66,29 @@
       "Bash(git branch -D*)",
       "Bash(rm -rf*)",
       "Bash(rm -fr*)",
-      "Edit(docs/decisions/0*.md)",
+      "Bash(sed -i*docs/decisions/*)",
+      "Bash(tee*docs/decisions/*)",
+      "Bash(*>docs/decisions/*)",
+      "Bash(*> docs/decisions/*)",
       "Edit(data/**)",
       "Read(.env)",
       "Read(**/*.key)",
       "Read(**/credentials*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/adr_append_only.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking ADR append-only rule"
+          }
+        ]
+      }
     ]
   }
 }

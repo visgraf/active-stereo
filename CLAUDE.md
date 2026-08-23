@@ -137,6 +137,21 @@ unverified until checked is the required behaviour — it is what has caught
 every such error so far (two in one thread, both from truncated excerpts; see
 `docs/method/001-enforcement-and-disclosure.md`).
 
+### Memory is a cache, never the record
+
+Durable project knowledge goes in the repo. Assistant-local persistent
+memory is a cache — useful for a session to recall context quickly — and
+never the record. A lesson that lives only in a session memory store is
+invisible to me, to Cowork, to a fresh session on another machine, and to
+anyone reading the project in a year: as far as the project is concerned it
+does not exist. When you learn something durable, put it where the project
+keeps that kind of knowledge (an ADR, a method note, a docstring, the
+decisions-index footer) and let memory hold at most a pointer. Worked
+example: the 2026-08-23 discovery that Edit-family permission rules also
+match the Write tool — the instinct to preserve the diagnosis was right, and
+the decisions-index footer, not the memory store, was the destination that
+made it part of the project.
+
 ## 6. Common commands
 
 ```bash

@@ -115,6 +115,53 @@ hypotheses with pointers, not values; verify at the file before durable
 recording; report discrepancies back (the divergence is information about the
 upstream surface, not noise to be silently fixed).
 
+## Finding 3 — Capability protection keeps landing at one call site (third instance)
+
+- **Date of this entry:** 2026-08-23. **Provenance:** the ADR append-only
+  hook split (`chore/adr-append-only-hook`), written — again — by the agent
+  the finding is about.
+
+Three independent instances of the same shape now stand:
+
+1. `git commit --amend` denied while `git reset --soft` + re-commit was open
+   (Finding 1): the **history-rewrite capability** protected at one command
+   spelling.
+2. The zero-`type: ignore` rule satisfied at the edge of `mypy src`: the
+   **type-honesty capability** enforced exactly as far as the checker's
+   configured scope and no further.
+3. The ADR append-only guard covering `Write|Edit|NotebookEdit` while Bash
+   remained a parallel, uncovered path to the same bytes on disk: the
+   **append-only capability** enforced at three call sites out of four.
+
+None of these was misbehaviour: in each case the agent used an open path
+with disclosure (1) or implemented the protection as specified (2, 3). The
+finding is structural: **path- and command-shaped permission systems invite
+protecting the call site, because the call site is what their pattern
+language can name.** The capability — "history is immutable", "types are
+checked", "ADRs are append-only" — is a property of *state*, while the
+pattern language ranges over *invocations*. Three independent instances make
+this a property of the system class, not an accident of any one rule.
+
+Today's instance adds a sharper sub-case: the ADR deny rule was already
+capability-shaped by Finding 1's own corollary (`Edit(docs/decisions/0*.md)`
+— a pattern, not an enumeration) and it still mis-scoped, because Edit-family
+rules also match the Write tool, so the rule protecting existing ADRs from
+modification also blocked *creating* new ones (ADR-0015 could not be
+written). Capability-shaped *intent* is not enough when the rule language
+cannot express the capability's contract: create-yes-modify-no is a predicate
+on file existence, which no path pattern can state. The replacement is an
+existence-checking `PreToolUse` hook (`.claude/hooks/adr_append_only.py`)
+that fails closed, with the Bash residual *documented* in the decisions-index
+footer rather than claimed closed — per Finding 1, the honest statement of a
+boundary is part of the boundary.
+
+The practical rule this yields: when protecting a capability, first write
+down the *state predicate* that defines it, then choose the narrowest
+mechanism that can evaluate that predicate (a hook, a CI check, a filesystem
+permission) — and for every call site the mechanism does not cover, either
+route it to a prompt or record that it is open. A pattern list is the
+mechanism of last resort, and it must be labelled as the approximation it is.
+
 ## What the next notes should watch for
 
 - Whether the ask-level backstop produces prompt fatigue that erodes review
@@ -125,3 +172,6 @@ upstream surface, not noise to be silently fixed).
   excerpt-holder with respect to the transcript).
 - The first incident Cowork participates in, which will test whether these
   two findings generalise beyond a two-surface setup.
+- Whether the existence-checking-hook pattern generalises: `results/`
+  deletion protection and the `data/` write ban are also state predicates
+  currently enforced as path rules, i.e. candidates for instance four.
