@@ -25,8 +25,14 @@ Template: [`0000-template.md`](0000-template.md).
 | [0012](0012-middlebury-real-data-corpus.md) | Middlebury 2014 is the real-data corpus; `doffs` is our vergence | Accepted | 2026-08-18 |
 | [0013](0013-fixation-as-oculomotor-state.md) | Fixation is oculomotor state — the eyes rotate | Accepted | 2026-08-23 |
 | [0014](0014-listing-coefficient-as-parameter.md) | The Listing coefficient is a parameter; 0.25 is a rectification property | Accepted (refines 0013) | 2026-08-23 |
+| [0015](0015-helmholtz-gaze-composition.md) | Gaze angles compose in Helmholtz order | Accepted (refines 0013) | 2026-08-23 |
 
 This index is maintained; it is a table of contents, not a decision, so the
 append-only rule does not cover it. The ADR files themselves are protected
-structurally (`.claude/settings.json` denies `Edit` on `docs/decisions/0*.md`),
-so a newly added ADR is protected without any list being extended.
+structurally by a PreToolUse hook in `.claude/settings.json`: modifying an
+existing `docs/decisions/0*.md` is denied outright, while creating a new ADR
+is prompt-gated — append-only enforced by file existence, not by path pattern.
+(A plain deny rule cannot express this: Edit-family permission rules match the
+Write tool too, so denying `Edit(docs/decisions/0*.md)` also blocked creating
+new ADRs — discovered 2026-08-23 when ADR-0015 could not be written.) A newly
+added ADR is protected without any list being extended.
