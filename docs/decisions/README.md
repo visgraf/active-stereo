@@ -28,11 +28,26 @@ Template: [`0000-template.md`](0000-template.md).
 | [0015](0015-helmholtz-gaze-composition.md) | Gaze angles compose in Helmholtz order | Accepted (refines 0013) | 2026-08-23 |
 
 This index is maintained; it is a table of contents, not a decision, so the
-append-only rule does not cover it. The ADR files themselves are protected
-structurally by a PreToolUse hook in `.claude/settings.json`: modifying an
-existing `docs/decisions/0*.md` is denied outright, while creating a new ADR
-is prompt-gated — append-only enforced by file existence, not by path pattern.
-(A plain deny rule cannot express this: Edit-family permission rules match the
-Write tool too, so denying `Edit(docs/decisions/0*.md)` also blocked creating
-new ADRs — discovered 2026-08-23 when ADR-0015 could not be written.) A newly
-added ADR is protected without any list being extended.
+append-only rule does not cover it.
+
+**How append-only is enforced, precisely.** A PreToolUse hook
+(`.claude/hooks/adr_append_only.py`) guards the `Write`/`Edit`/`NotebookEdit`
+tool paths: modifying an existing `docs/decisions/0*.md` is denied outright;
+creating a new ADR is prompt-gated. The hook fails closed — unparseable
+input, unresolvable paths, and internal errors all deny. Enforcement is by
+file existence because a path pattern cannot express create-vs-modify:
+Edit-family permission rules also match the Write tool, so the previous deny
+rule on `docs/decisions/0*.md` also blocked *creating* new ADRs (discovered
+2026-08-23 when ADR-0015 could not be written). A newly added ADR is
+protected without any list being extended.
+
+**What this does not guarantee.** Bash is a separate tool path: `sed -i`,
+`tee`, or a shell redirect targeting an ADR does not pass through the hook.
+Those commands are not allowlisted, so they prompt for approval, and narrow
+deny rules in `.claude/settings.json` catch the obvious in-place forms — but
+shell-string glob matching is brittle (quoting, variables, a prior `cd`,
+heredocs, `python -c` all evade it) and is defence in depth, not a boundary.
+The invariant actually enforced: **existing ADRs cannot be modified through
+the file-editing tools, and any other modification path requires explicit
+human approval.** See `docs/method/001-enforcement-and-disclosure.md` for why
+this edge is documented rather than claimed closed.
