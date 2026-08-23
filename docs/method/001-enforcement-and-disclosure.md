@@ -162,6 +162,44 @@ permission) — and for every call site the mechanism does not cover, either
 route it to a prompt or record that it is open. A pattern list is the
 mechanism of last resort, and it must be labelled as the approximation it is.
 
+## Finding 4 — Correct, tested, merged — then silently reverted; CI stayed green
+
+- **Date of this entry:** 2026-08-23. **Provenance:** the #28 merge commit
+  (`a483bb9`, "Merge branch 'main' into feat/eye-rotations") and the recovery
+  branch `fix/restore-hook-wiring`.
+
+The #28 merge resolved two conflicts toward the feature branch instead of
+toward `main`, restoring the inline fail-open shell hook in
+`.claude/settings.json` and the overclaiming decisions-index footer —
+silently reverting everything Finding 3's hardening (PR #29) had landed in
+those files. The hardened script survived on disk, orphaned: nothing invoked
+it. Its nine unit tests kept passing, because they exercise the **script**,
+and nothing tested that settings.json **deploys** it. The suite was green
+while the guard was inert — the exp001 failure shape (a test measuring
+something other than what is deployed), reproduced inside the permission
+system.
+
+This is a different failure from Findings 1–3. Enforcement did not fail: the
+deployed configuration did exactly what it said. Disclosure did not fail:
+the merge was public and reviewable. **Propagation failed** — a correct
+control does not stay deployed by itself, and a conflict resolution is an
+unreviewed rewrite of whichever side loses. Two aggravating details worth
+recording: the correct resolution ("settings.json conflicts resolve in
+favour of main") was written down in advance, in #29's own PR body — intent
+documentation does not propagate into merges either; and the reverted files
+were a *security control*, the one category where silent regression is most
+expensive and least visible.
+
+The mechanism that makes this failure detectable is a **wiring test**
+(`tests/unit/test_hook_wiring.py`): parse settings.json, assert the
+PreToolUse block invokes `.claude/hooks/adr_append_only.py` (and is not the
+inline jq form), assert the defence-in-depth deny rules are present. Run
+against the reverted `main` it fails 3 of 4 — verified before the fix, since
+a test that cannot fail on the bug it exists for is not a test. The general
+rule: **a control needs two tests — one that its logic is right, one that it
+is actually deployed.** The first kind survives a revert; only the second
+kind turns a silent revert into a red suite.
+
 ## What the next notes should watch for
 
 - Whether the ask-level backstop produces prompt fatigue that erodes review

@@ -14,7 +14,11 @@ explicit exceptions:
     looks like an ADR path                              -> deny
   - any unhandled exception                             -> deny
 Both the normalized path and its realpath are tested, so a symlink disguise
-in either direction is treated as an ADR.
+in either direction is treated as an ADR. Matching is case-insensitive: on a
+case-insensitive filesystem (macOS default) `Docs/Decisions/0013-x.md` names
+the same file, so it must match; the flip side — on a case-sensitive
+filesystem a literal `Docs/Decisions/` directory would be treated as the ADR
+directory — errs toward deny, which is the correct direction for a guard.
 
 Known residuals, stated rather than papered over:
   - Bash is a separate tool path: `sed -i docs/decisions/0013-*.md` does not
@@ -50,7 +54,7 @@ def _emit(decision: str, reason: str) -> None:
 
 def _is_adr(path: str) -> bool:
     """True if `path` names a file docs/decisions/0*.md (any prefix above it)."""
-    parts = os.path.normpath(path).replace("\\", "/").split("/")
+    parts = os.path.normpath(path).replace("\\", "/").casefold().split("/")
     return len(parts) >= 3 and parts[-3:-1] == ["docs", "decisions"] and fnmatch(parts[-1], "0*.md")
 
 
