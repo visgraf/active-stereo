@@ -18,11 +18,19 @@ the 209 existing tests change**; each step ships its own new tests.
    `elevation_down`, `vergence` (all rad; head frame +X right, +Y down,
    +Z forward); validation `vergence >= 0`; `Fixation.forward(vergence)`.
    Unit tests: validation, frozen-ness, `forward()`.
-3. **`geometry/oculomotor.py`: `eye_rotations(rig, fixation)`.** The only
-   place gaze becomes SO(3); torsion by Listing L2 (μ/4 temporal tilt of each
-   Listing plane under vergence μ). Tests pin analytic cases: symmetric
-   horizontal fixation → yaw-only, zero torsion; eccentric near fixation →
-   the known μ/4 tilt.
+3. **`geometry/oculomotor.py`: `eye_rotations(rig, fixation, k=0.25)`.** The
+   only place gaze becomes SO(3); torsion by the binocular Listing law with
+   the tilt coefficient `k` as a **parameter, not a branch** (ADR-0014):
+   `k = 0.25` default, `k = 0` is strict Listing. Tests pin analytic cases:
+   `k = 0` reduces to strict Listing; symmetric horizontal fixation →
+   yaw-only, zero torsion at any `k`; eccentric near fixation → the
+   elevation-dependent torsion signs (intorsion for upward proximal gaze,
+   extorsion for downward, opposite between the eyes). This step also
+   **computes the L1-vs-L2 vertical displacement at the project's actual
+   stimulus scales** — the quantity ADR-0014 deliberately left unrecorded —
+   benchmarked against exp007's measured MiddEval3 `dyavg` (up to ≈ 0.5 px
+   at Q) and the matchers' median |Δd| (≈ 0.07 px best-case RDS, exp006;
+   ≈ 0.2–0.5 px on well-behaved scenes).
 4. **`geometry/projection.py` (additive): toed-in binocular projection.**
    Forward model for `(rig, fixation)` producing horizontal **and** vertical
    disparity fields. Payoff tests: zero disparity on the Vieth–Müller circle
