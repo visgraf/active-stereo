@@ -319,7 +319,7 @@ def test_downsampling_leaves_metric_depth_and_vergence_alone(tmp_path):
     # taken from known positions. Compare those exactly rather than settling for a
     # tolerance on min and max, which a factor-of-k error could still slip past.
     off = (3 - 1) // 2
-    np.testing.assert_array_equal(b.depth, a.depth[off :: 3, off :: 3][: b.shape[0], : b.shape[1]])
+    np.testing.assert_array_equal(b.depth, a.depth[off::3, off::3][: b.shape[0], : b.shape[1]])
 
 
 def test_downsampling_scales_disparity_by_the_factor(tmp_path):

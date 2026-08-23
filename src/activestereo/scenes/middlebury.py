@@ -420,8 +420,7 @@ class MiddleburyScene:
         """
         if right_variant not in RIGHT_VARIANTS:
             raise ValueError(
-                f"unknown right variant {right_variant!r}; expected one of "
-                f"{sorted(RIGHT_VARIANTS)}"
+                f"unknown right variant {right_variant!r}; expected one of {sorted(RIGHT_VARIANTS)}"
             )
         k = self.downsample
         disp0 = read_pfm(self.directory / "disp0.pfm")

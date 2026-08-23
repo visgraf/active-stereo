@@ -96,9 +96,9 @@ def test_middlebury_config_matches_the_fetch_manifest():
     import yaml
 
     scene_cfg = load_config(CONFIGS / "middlebury2014.yaml")
-    manifest = yaml.safe_load(
-        (CONFIGS.parent / "dataset" / "middlebury2014.yaml").read_text()
-    )["dataset"]
+    manifest = yaml.safe_load((CONFIGS.parent / "dataset" / "middlebury2014.yaml").read_text())[
+        "dataset"
+    ]
     assert scene_cfg["scene"]["scenes"] == manifest["scenes"]
     assert scene_cfg["scene"]["variant"] == manifest["variant"]
 

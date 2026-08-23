@@ -40,9 +40,7 @@ class StubEncoder:
 
 def stub_decoder(profile: FloatArray, K: int = 17, **kw) -> EnergyDecoder:
     """Decoder over a bank [0..K-1] whose every pixel sees ``profile`` (K,)."""
-    response = np.broadcast_to(
-        np.asarray(profile, float)[:, None, None], (K, H, W)
-    ).copy()
+    response = np.broadcast_to(np.asarray(profile, float)[:, None, None], (K, H, W)).copy()
     return EnergyDecoder(encoder=StubEncoder(np.arange(K, dtype=float), response), **kw)
 
 
