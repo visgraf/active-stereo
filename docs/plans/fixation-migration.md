@@ -1,0 +1,107 @@
+# Migration plan: fixation as oculomotor state
+
+Companion to [ADR-0013](../decisions/0013-fixation-as-oculomotor-state.md) and
+the [draft issue](../issues/fixation-as-oculomotor-state.md).
+Branch `feat/fixation-state`.
+
+**Contract: the suite is green at every step.** Each step is one commit;
+`pytest -q` (209 tests at the time of writing, all passing), `ruff check src
+tests`, and `mypy src` pass after each. Every step is additive — a new type,
+new functions, an optional field with a default, a new Protocol — so **0 of
+the 209 existing tests change**; each step ships its own new tests.
+
+## Order
+
+1. **Docs (done in this change).** ADR-0013, the draft issue, this plan.
+   No code.
+2. **`types.py`: `Fixation`.** Frozen dataclass — `azimuth`,
+   `elevation_down`, `vergence` (all rad; head frame +X right, +Y down,
+   +Z forward); validation `vergence >= 0`; `Fixation.forward(vergence)`.
+   Unit tests: validation, frozen-ness, `forward()`.
+3. **`geometry/oculomotor.py`: `eye_rotations(rig, fixation)`.** The only
+   place gaze becomes SO(3); torsion by Listing L2 (μ/4 temporal tilt of each
+   Listing plane under vergence μ). Tests pin analytic cases: symmetric
+   horizontal fixation → yaw-only, zero torsion; eccentric near fixation →
+   the known μ/4 tilt.
+4. **`geometry/projection.py` (additive): toed-in binocular projection.**
+   Forward model for `(rig, fixation)` producing horizontal **and** vertical
+   disparity fields. Payoff tests: zero disparity on the Vieth–Müller circle
+   (`horopter.py` becomes the correct horopter of the model, closing
+   ADR-0007 item 4); first-order agreement with the retained off-axis model
+   near the axis at forward fixation. The existing `depth_to_disparity` and
+   its tests (including `test_zero_disparity_on_the_horopter`) are untouched:
+   they pin the retained off-axis *capture* model.
+5. **`geometry/oculomotor.py`: `target_to_fixation`.** The single
+   pixel→rotation boundary. Takes the belief `Estimate` at the target (never
+   a bare float — ADR-0013), returns `(Fixation, vergence_variance)`. Tests
+   include first-order variance propagation.
+6. **`geometry/rectify.py`.** Exact per-eye rotation homographies
+   `H_e = K R_rect R_eᵀ K⁻¹` + ADR-0002-masked bilinear warp (masks warp
+   nearest-neighbour, validity masked before mixing). Round-trip tests.
+7. **`scenes/base.py`: `RefixableScene` Protocol** with the
+   `rig.vergence == 0` contract, plus `StereoStimulus.fixation:
+   Fixation | None = None` (`None` = static off-axis capture; every existing
+   constructor call is unchanged). Tests: Middlebury / Blender / legacy RDS
+   are **not** instances; the loop driver's static degradation path is taken
+   (`Fixation.forward(rig.vergence)`, never a raise); `render_at` on a
+   converged rig raises `ValueError`.
+8. **`scaling/belief.py`: `CyclopeanBelief(weight_fn=...)`.** Inverse depth
+   on a fixed angular grid in the cyclopean head frame; recursive
+   reprojection + fusion; `weight_fn` defaults to `fuse_mle` precision
+   weighting and is a constructor parameter (ADR-0013: the anti-calibrated
+   variance channel compounds under recursion; exp008 will measure it, and
+   the parameter keeps the fix a one-argument change). Tests: default
+   reproduces `fuse_mle`; custom `weight_fn` honoured; frame invariance under
+   refixation.
+9. **`scripts/demo_active_stereo.py`, part 1: remove the oracle.** Pass the
+   L3 `disparity` estimate into `active_loop` in place of
+   `Estimate(stim.disparity, 0.25)` — honest measurement on the static path.
+   No tests cover scripts; still green.
+10. **Refixable RDS synthesis** (`scenes/rds.py` or a sibling
+    `scenes/rds_world.py`). World-frame surface (the depth function
+    reinterpreted over a cyclopean-frame grid); surface-attached
+    deterministic texture — dot values keyed by `(seed, quantised world
+    coordinate)` through a counter-based hash, so the same world point yields
+    the same dot at every fixation (seed still injected explicitly; the
+    no-global-rng rule holds); backward-warp synthesis **directly into each
+    eye's rectified geometry**, avoiding the interpolation monocular cue.
+    Implements `RefixableScene`; requires `rig.vergence == 0`. Unit tests:
+    same world point → same dot value across fixations; occlusion structure
+    consistent with the surface; `autostereogram_check` passes.
+11. **End-to-end closed-loop test** (`tests/integration/`). Two fixations on
+    the same refixable-RDS world: (i) the belief is frame-invariant across
+    the saccade; (ii) the disparity estimate at the second fixation's fovea
+    improves over the first view's estimate at that location. This is the
+    acceptance test for the whole change — it composes `render_at` → rectify
+    → L3 → L4 → belief → `target_to_fixation`, and catches wiring errors no
+    per-component analytic test can. Demo part 2 lands here: per-iteration
+    re-render, re-match, belief update, and saliency recomputed from the
+    belief whenever the scene is refixable.
+12. **Blender + docs.** `render_stereo.py --convergence-mode {OFFAXIS,TOE}`
+    (default `OFFAXIS`); `write_rig` records the actual mode (today it
+    hardcodes `"OFFAXIS"`) plus a fixation block under `TOE`;
+    `rig_from_blender` / `BlenderRenderScene` branch on the recorded mode.
+    `docs/architecture.md` horopter caveat rewritten; `horopter.py` docstring
+    flipped ("this IS the model's horopter under Fixation-driven geometry");
+    `docs/decisions/README.md` index updated — 0013 added, 0007 marked
+    superseded, and the stale 0009–0012 rows backfilled (an index is not a
+    decision; the append-only rule protects decisions, not the table of
+    contents).
+
+## Deliberately out of scope
+
+Gaze-contingent Blender rendering (Blender's native `TOE` is
+yaw-only/zero-torsion — correct only for symmetric horizontal fixation;
+eccentric renders need explicit per-eye extrinsics exported from
+`eye_rotations`); 2D matching on the raw pair (the rectification fork,
+ADR-0013's declared open question); removing `StereoRig.vergence`; exp008
+(weighting calibration under recursive fusion).
+
+## Invalidation audit
+
+Nothing beyond ADR-0007 is invalidated. `test_zero_disparity_on_the_horopter`
+pins the retained off-axis capture model and is kept as-is (its docstring
+becomes model-scoped in step 4). ADR-0003's linearisation bound stands as
+recorded but must be re-derived before quantitative peripheral claims under
+toed-in geometry. exp001–exp007 findings stand: the exp003/exp004 renders are
+`OFFAXIS`, recorded as such in `rig.json`, static, and never re-fixated.
