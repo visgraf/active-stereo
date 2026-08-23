@@ -16,8 +16,11 @@ seen from fixation F".
 
 Per ADR-0013, **fixation becomes a rotation of each eye about its optical
 centre** (toed-in, Vieth–Müller), carried by a new `Fixation` type
-(`azimuth`, `elevation_down`, `vergence`; torsion determined by Listing L2
-inside the single `eye_rotations` function). The off-axis model is retained as
+(`azimuth`, `elevation_down`, `vergence`; torsion determined by the binocular
+Listing law inside the single `eye_rotations` function, with the tilt
+coefficient `k` a parameter — default 0.25, strict Listing at `k = 0` — per
+ADR-0014, which refines ADR-0013's declared L1/L2 open question into a
+measurable sweep). The off-axis model is retained as
 the capture model of static stimuli; `rig.vergence` narrows to "capture
 convergence", and any `RefixableScene` requires `rig.vergence == 0` so the two
 vergence fields are disjoint by domain.
@@ -48,8 +51,10 @@ after every step, `ruff` and `mypy src` included.
 1. `Fixation` exists, frozen, validated (`vergence >= 0`), with
    `Fixation.forward()`; head-frame convention documented with units and
    signs.
-2. `eye_rotations(rig, fixation)` is the only code that produces SO(3) from
-   gaze; torsion is L2 by default and not a stored field.
+2. `eye_rotations(rig, fixation, k=0.25)` is the only code that produces
+   SO(3) from gaze; torsion is determined, not a stored field, and the
+   Listing coefficient `k` is a parameter (ADR-0014): default 0.25, strict
+   Listing at `k = 0`, no L1/L2 branch anywhere.
 3. Toed-in binocular projection produces horizontal **and** vertical
    disparity; the Vieth–Müller circle is its zero-disparity locus.
 4. `target_to_fixation` accepts an `Estimate` (never a bare float) and
@@ -73,11 +78,15 @@ after every step, `ruff` and `mypy src` included.
 - **Wrong locus (planar instead of toed-in):** the projection test requires
   zero disparity *on the Vieth–Müller circle*; a shifted-frustum
   implementation puts zeros on a fronto-parallel plane and fails it.
-- **Torsion sign or law error:** analytic pins — symmetric horizontal fixation
-  must give yaw-only rotations, zero torsion, and zero vertical disparity on
-  the horizontal meridian; eccentric near fixation must give the L2 μ/4 tilt.
-  A flipped sign inverts the vertical-disparity field and fails the pinned
-  values.
+- **Torsion sign or law error:** analytic pins — `k = 0` must reduce to
+  strict Listing; symmetric horizontal fixation must give yaw-only rotations,
+  zero torsion, and zero vertical disparity on the horizontal meridian at any
+  `k`; eccentric near fixation must give elevation-dependent torsion
+  (intorsion upward, extorsion downward, opposite between the eyes) with the
+  default `k = 0.25` tilt. A flipped sign inverts the vertical-disparity
+  field and fails the pinned values — and ADR-0014's `k`-sweep doubles as the
+  end-to-end audit: a residual-vertical-disparity minimum away from 0.25
+  indicates a sign or axis error in `eye_rotations`.
 - **Wrong rotation direction / frame mix-up:** the rectified toed-in pair must
   reproduce the off-axis disparity to first order near the axis at forward
   fixation.
