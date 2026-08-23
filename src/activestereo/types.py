@@ -33,6 +33,16 @@ class StereoRig:
     vergence: float = 0.0
 
     def __post_init__(self) -> None:
+        # Finiteness is checked explicitly for every field: a comparison
+        # like `baseline <= 0` is False for NaN, so the sign checks alone
+        # would silently admit a NaN rig — the same rationale as Fixation.
+        for name in ("baseline", "focal_px", "vergence"):
+            value = getattr(self, name)
+            if not np.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {value}")
+        for i, value in enumerate(self.principal_point):
+            if not np.isfinite(value):
+                raise ValueError(f"principal_point[{i}] must be finite, got {value}")
         if self.baseline <= 0:
             raise ValueError(f"baseline must be positive, got {self.baseline}")
         if self.focal_px <= 0:
