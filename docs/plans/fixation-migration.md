@@ -44,6 +44,19 @@ the 209 existing tests change**; each step ships its own new tests.
    benchmarked against exp007's measured MiddEval3 `dyavg` (up to ≈ 0.5 px
    at Q) and the matchers' median |Δd| (≈ 0.07 px best-case RDS, exp006;
    ≈ 0.2–0.5 px on well-behaved scenes).
+
+   *Construction (plan-review outcome, 2026-08-23):* tilted-Listing
+   displacement form `R_e = A(p_e→g_e) · A(ẑ→p_e)`, shortest arcs via the
+   trig-free Rodrigues form. The second factor is the primary orientation;
+   omitting it (the shortest arc alone) mis-points the optical axis by
+   ≈ k·μ — 13–32 px at project scales — and is pinned by the
+   gaze-lines-intersect test. The cyclopean direction composes in
+   **Helmholtz** order (ADR-0015: the plane of regard is exactly the
+   elevated plane for every azimuth), which makes `fixation_distance`
+   closed-form via a Vieth–Müller chord. Fixation azimuth is
+   domain-restricted to (−π/2, π/2): beyond it the chord lands on the
+   minor arc, where the inscribed angle is π−μ, and the returned geometry
+   would be silently wrong — the functions raise instead.
 4. **`geometry/projection.py` (additive): toed-in binocular projection.**
    Forward model for `(rig, fixation)` producing horizontal **and** vertical
    disparity fields. Payoff tests: zero disparity on the Vieth–Müller circle
@@ -52,6 +65,24 @@ the 209 existing tests change**; each step ships its own new tests.
    near the axis at forward fixation. The existing `depth_to_disparity` and
    its tests (including `test_zero_disparity_on_the_horopter`) are untouched:
    they pin the retained off-axis *capture* model.
+
+   ⚠ *Vacuous-pass hazard (flagged at step 3).*
+   `horopter.vieth_muller_radius(rig)` reads `rig.vergence`. Under ADR-0013
+   any `RefixableScene` has `rig.vergence == 0`, so the helper returns `inf`
+   and `vieth_muller_circle` degenerates to the plane at infinity. If this
+   step's zero-disparity-on-the-VM-circle acceptance test reaches for the
+   helper unchanged on a refixable rig, it compares against a degenerate
+   horopter and can pass vacuously — the exp001 exactly-0.0-foveal-MAE
+   failure shape. **The load-bearing protection is the precondition
+   assertion in the acceptance test itself: assert `np.isfinite(R)` and
+   `μ > 0` before any disparity is compared, so degeneracy fails loudly
+   instead of passing.** The API accommodation — an optional
+   `fixation: Fixation | None = None` parameter on `vieth_muller_radius` /
+   `vieth_muller_circle`, with `fixation.vergence` overriding
+   `rig.vergence` when given (additive; existing calls and tests
+   untouched) — is convenience only: an optional argument that silently
+   changes which field is authoritative is its own hazard, and it must not
+   substitute for the assertion.
 5. **`geometry/oculomotor.py`: `target_to_fixation`.** The single
    pixel→rotation boundary. Takes the belief `Estimate` at the target (never
    a bare float — ADR-0013), returns `(Fixation, vergence_variance)`. Tests

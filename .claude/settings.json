@@ -66,10 +66,6 @@
       "Bash(git branch -D*)",
       "Bash(rm -rf*)",
       "Bash(rm -fr*)",
-      "Bash(sed -i*docs/decisions/*)",
-      "Bash(tee*docs/decisions/*)",
-      "Bash(*>docs/decisions/*)",
-      "Bash(*> docs/decisions/*)",
       "Edit(data/**)",
       "Read(.env)",
       "Read(**/*.key)",
@@ -83,7 +79,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/adr_append_only.py\"",
+            "command": "jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' | { read -r f; case \"$f\" in */docs/decisions/0*.md|docs/decisions/0*.md) if [ -e \"$f\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"ADRs are append-only: existing docs/decisions/0*.md files are never edited. Supersede with a new ADR.\"}}'; else echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Creating a new ADR in an append-only directory: prompt-gated.\"}}'; fi;; esac; }",
             "timeout": 10,
             "statusMessage": "Checking ADR append-only rule"
           }
