@@ -100,6 +100,16 @@ Do not add an estimator that returns a bare point estimate.
 - Never change numerical tolerances in tests to make them pass.
 - Never introduce a second convention for units or frames "just here".
 
+### When a deny rule blocks you
+
+When a permission deny rule blocks an action you believe should be permitted,
+**stop and ask for the rule to be changed**. Do not find an equivalent path to
+the same outcome. A deny rule is my statement about which decisions you do not
+make unilaterally; "I found another way" silently converts it into a statement
+about which commands are inconvenient. Disclosure afterwards is necessary but
+not sufficient — it makes a breach recoverable; it does not make it
+authorized. (Origin: `docs/method/001-enforcement-and-disclosure.md`.)
+
 ### Definition of done
 
 A task is complete when: tests pass · new behaviour has a test · docstrings state
@@ -114,6 +124,18 @@ contradicted with a reason than agreed with politely. Precision over hedging.
 
 When you are uncertain about a numerical result, say you are uncertain and
 propose the check that would resolve it.
+
+### The handoff contract (Chat → Code, and any surface without the files)
+
+Numeric claims arriving from Claude Chat — or from any surface that read
+excerpts, transcripts, or grep output rather than the files — are **hypotheses
+with pointers, not values**. Before recording one anywhere durable (an ADR, a
+findings entry, a commit message), verify it against the cited file. Report
+discrepancies back to me rather than silently correcting them: the divergence
+is itself information about the upstream surface. Flagging your own inputs as
+unverified until checked is the required behaviour — it is what has caught
+every such error so far (two in one thread, both from truncated excerpts; see
+`docs/method/001-enforcement-and-disclosure.md`).
 
 ## 6. Common commands
 
