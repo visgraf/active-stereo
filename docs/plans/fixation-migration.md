@@ -16,8 +16,21 @@ the 209 existing tests change**; each step ships its own new tests.
    No code.
 2. **`types.py`: `Fixation`.** Frozen dataclass — `azimuth`,
    `elevation_down`, `vergence` (all rad; head frame +X right, +Y down,
-   +Z forward); validation `vergence >= 0`; `Fixation.forward(vergence)`.
-   Unit tests: validation, frozen-ness, `forward()`.
+   +Z forward); validation `vergence >= 0` and all fields finite;
+   `Fixation.forward(vergence)`. Unit tests: validation, frozen-ness,
+   `forward()`.
+
+   *Declared open question — angle wrapping and equality.* Two `Fixation`s
+   differing by 2π are the same oculomotor state but unequal as frozen
+   dataclasses. Equality stays structural for now (pinned by
+   `test_fixation_equality_is_structural_not_angular`, which fails if
+   wrapping is ever added casually). This first bites at step 9+, where
+   L6's `visited` list and inhibition of return move from pixel targets to
+   gaze space — and it likely dissolves there rather than here: inhibition
+   of return is metric (a radius), so L6 needs an angular-distance
+   function, not equality, and that function handles 2π by construction.
+   Resolve when step 9 lands; candidate homes are an angular-distance
+   helper in `geometry/oculomotor.py`, never a custom `__eq__`.
 3. **`geometry/oculomotor.py`: `eye_rotations(rig, fixation, k=0.25)`.** The
    only place gaze becomes SO(3); torsion by the binocular Listing law with
    the tilt coefficient `k` as a **parameter, not a branch** (ADR-0014):
