@@ -99,6 +99,7 @@ def evaluate(depth: Estimate, stim: StereoStimulus) -> dict[str, float]:
 
 def active_loop(
     depth: Estimate,
+    disparity: Estimate,
     stim: StereoStimulus,
     max_fixations: int,
     sigma: float,
@@ -121,10 +122,7 @@ def active_loop(
             break
         visited.append(target)
 
-        d_hat, d_var = estimate_vergence_disparity(
-            Estimate(stim.disparity, np.where(np.isfinite(stim.disparity), 0.25, np.nan)),
-            centre=target,
-        )
+        d_hat, d_var = estimate_vergence_disparity(disparity, centre=target)
         angle_meas = (
             float(2.0 * np.arctan(stim.rig.baseline / (2.0 * _fixation_depth(d_hat, stim.rig))))
             if np.isfinite(d_hat)
@@ -263,6 +261,7 @@ def main() -> int:
     metrics = evaluate(depth, stim)
     loop = active_loop(
         depth,
+        disparity,
         stim,
         max_fixations=args.max_fixations,
         sigma=3.0,
