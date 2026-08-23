@@ -94,9 +94,7 @@ def test_multiscale_resolves_the_aliasing():
     """Second half: the same stimulus through the population."""
     left, right = periodic_pair(d0=10, period=8)
     multi = EnergyDecoder(
-        encoder=MultiScaleEnergyEncoder(
-            bank(), scales=((8, 4), (32, 16)), combine="product"
-        )
+        encoder=MultiScaleEnergyEncoder(bank(), scales=((8, 4), (32, 16)), combine="product")
     )
     est = multi.match(left, right)
     ok = np.isfinite(est.value)
@@ -117,9 +115,7 @@ def test_gain_invariance_is_bit_exact_for_powers_of_two():
     right = base[:, d0 : d0 + 96]
     for combine in ("product", "sum"):
         dec = EnergyDecoder(
-            encoder=MultiScaleEnergyEncoder(
-                bank(17), scales=((8, 4), (16, 8)), combine=combine
-            )
+            encoder=MultiScaleEnergyEncoder(bank(17), scales=((8, 4), (16, 8)), combine=combine)
         )
         ref = dec.match(left, right)
         for gain in (0.5, 2.0):

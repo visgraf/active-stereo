@@ -142,9 +142,7 @@ def stage_a(cfg: dict) -> dict:
         )
 
     # Declared selection: maximise photo margin, tiebreak RDS ratio.
-    selected = max(
-        rows, key=lambda r: (r["photo_margin_median"], -r["rds_err_ratio_vs_block"])
-    )
+    selected = max(rows, key=lambda r: (r["photo_margin_median"], -r["rds_err_ratio_vs_block"]))
     spec = {k: selected[k] for k in ("scales", "combine", "floor")}
     print(f"[exp006/A] selected: {spec}")
 
@@ -155,9 +153,7 @@ def stage_a(cfg: dict) -> dict:
         dec = build_decoder(cfg, rds_cfg["max_disparity"], spec)
         est = dec.match(stim.left, stim.right)
         final["energy_err"].append(median_abs_error(stim, est))
-        final["energy_cov"].append(
-            float(np.isfinite(est.value)[stim.scorable].mean())
-        )
+        final["energy_cov"].append(float(np.isfinite(est.value)[stim.scorable].mean()))
         final["block_err"].append(median_abs_error(stim, block.match(stim.left, stim.right)))
     energy_err = _median(final["energy_err"])
     block_err5 = _median(final["block_err"])
@@ -292,8 +288,7 @@ def stage_b(cfg: dict) -> dict:
             "H3b_error_multiplier_im1E_median": _median(mults),
             "H3b_coverage_drop_im1E_median": _median(drops),
             "H3b_falsified": bool(
-                (np.isfinite(_median(mults)) and _median(mults) >= 2.0)
-                or _median(drops) > 0.15
+                (np.isfinite(_median(mults)) and _median(mults) >= 2.0) or _median(drops) > 0.15
             ),
         }
     else:

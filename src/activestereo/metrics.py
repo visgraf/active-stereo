@@ -222,7 +222,5 @@ def score_all(
         "unknown_fraction": stim.unknown_fraction,
     }
     if image is not None or contrast is not None:
-        out.update(
-            variance_by_contrast(stim, est, image=image, window=window, contrast=contrast)
-        )
+        out.update(variance_by_contrast(stim, est, image=image, window=window, contrast=contrast))
     return out

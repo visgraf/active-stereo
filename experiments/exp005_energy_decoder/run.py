@@ -96,8 +96,13 @@ def stage_a(cfg: dict) -> dict:
     h1a = {
         name: {
             key: _median(np.array([r[key] for r in rows]))
-            for key in ("median_abs_err_px", "coverage", "hallucination", "bad_rate",
-                        "variance_ratio")
+            for key in (
+                "median_abs_err_px",
+                "coverage",
+                "hallucination",
+                "bad_rate",
+                "variance_ratio",
+            )
         }
         for name, rows in per_seed.items()
     }
@@ -224,9 +229,7 @@ def stage_b(cfg: dict) -> dict:
         "H3_coverage_drop_im1E_median": drop_med,
         "H3_per_scene_multipliers": [float(m) for m in mults],
         "H3_per_scene_coverage_drops": [float(d) for d in drops],
-        "H3_falsified": bool(
-            (np.isfinite(mult_med) and mult_med >= 4.0) or drop_med > 0.25
-        ),
+        "H3_falsified": bool((np.isfinite(mult_med) and mult_med >= 4.0) or drop_med > 0.25),
     }
 
     context = {}

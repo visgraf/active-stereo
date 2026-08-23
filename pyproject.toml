@@ -24,7 +24,11 @@ viz = ["matplotlib>=3.7"]
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
-    "ruff>=0.4",
+    # Pinned exactly: ruff format is the CI gate, and each ruff release can
+    # move it. 0.16.4 reformats 3 files that 0.16.3 accepts; an unpinned CI
+    # was red for days on main through no fault of any PR. Bump deliberately,
+    # reformatting in the same commit.
+    "ruff==0.16.4",
     "mypy>=1.8",
     "hypothesis>=6.90",
 ]

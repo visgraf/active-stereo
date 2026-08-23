@@ -61,9 +61,7 @@ def build_matchers(scene: MiddleburyScene, cfg: dict) -> dict:
         )
     ndisp = scene.ndisp
 
-    matchers: dict = {
-        "block": BlockMatcher(max_disparity=ndisp, window=cfg["matcher"]["window"])
-    }
+    matchers: dict = {"block": BlockMatcher(max_disparity=ndisp, window=cfg["matcher"]["window"])}
     try:
         from activestereo.inference.sgbm import SGBMMatcher
 

@@ -167,9 +167,7 @@ def _build_middlebury(sc: dict[str, Any]) -> list[Scene]:
         raise FileNotFoundError(
             f"not fetched under {root}: {missing}\nRun: python scripts/fetch_middlebury.py"
         )
-    return [
-        MiddleburyScene(root / f"{n}-{variant}", downsample=downsample, **sc) for n in names
-    ]
+    return [MiddleburyScene(root / f"{n}-{variant}", downsample=downsample, **sc) for n in names]
 
 
 def _build_blender_chart(sc: dict[str, Any]) -> list[Scene]:
