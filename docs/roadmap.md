@@ -1,3 +1,16 @@
+# Roadmap — Phases A–E
+
+- **Status:** Living document. Revised as phases complete, scope shifts,
+  or findings redirect the plan. Contrast with `docs/decisions/`, which is
+  append-only and hook-enforced: an ADR records a decision at a moment and
+  is never edited, while this file records current intent and is expected
+  to change.
+- **Authority:** Strategic intent, authored by the maintainer. Unlike
+  findings or ADRs, there is nothing in the repo to verify it against —
+  Claude Code should treat revisions here as instructions, not hypotheses.
+- **Scope:** What each phase asks and why the order is what it is.
+  Implementation detail lives in `docs/plans/`.
+
 ### High-level plan
 
 Five phases, each ending in a registered experiment. The ordering rule is *measure before repair*, so each repair is motivated by a number rather than by an argument.
@@ -14,3 +27,4 @@ Five phases, each ending in a registered experiment. The ordering rule is *measu
 
 Expect Phase A to break the demo's current numbers. That's a real cost and worth naming: something that presently runs and prints plausible output will stop doing so, and the honest reading is that it was printing plausible output for a loop that wasn't running.
 
+2026-08-24 — Phase C deferred behind B; measure before repair

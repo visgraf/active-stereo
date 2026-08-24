@@ -27,7 +27,8 @@
       "Edit(experiments/**)",
       "Edit(configs/**)",
       "Edit(docs/lab-notebook/**)",
-      "Edit(docs/method/**)"
+      "Edit(docs/method/**)",
+      "Edit(docs/roadmap.md)"
     ],
     "ask": [
       "Bash(git commit*)",
