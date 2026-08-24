@@ -168,6 +168,7 @@ latexmk -pdf -cd paper/main.tex  # build the paper
 ## 7. Reading order for a fresh session
 
 1. This file.
+2. `docs/roadmap.md`- holds the Phase A–E arc; the current migration plan implements Phase A.
 2. `docs/decisions/` — the accumulated "why", especially ADR-0001..0003.
 3. `docs/architecture.md` — how the six layers connect.
 4. The module you are about to touch, and its tests.
