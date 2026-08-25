@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from activestereo.geometry.oculomotor import _require_forward_azimuth
+from activestereo.geometry.oculomotor import require_forward_azimuth
 from activestereo.types import Fixation, FloatArray, StereoRig
 
 
@@ -108,7 +108,7 @@ def vieth_muller_points(rig: StereoRig, fixation: Fixation, azimuths: FloatArray
     ``D = h cos a + sqrt(h^2 cos^2 a + (b/2)^2)`` with ``h = (b/2)/tan mu``, which
     is exactly that function's closed form.
     """
-    _require_forward_azimuth(fixation)
+    require_forward_azimuth(fixation)
     mu = fixation.vergence
     if mu <= 0.0:
         raise ValueError(

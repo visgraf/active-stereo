@@ -318,26 +318,39 @@ def test_vieth_muller_points_rejects_degenerate_and_out_of_domain_input(toed_rig
 
 
 def on_circle(rig, fx, k, span=0.25, n=801):
-    """(d_h, d_v, imageable mask) on the Vieth-Muller circle of ``(rig, fx)``."""
+    """Sample the Vieth-Muller circle of ``(rig, fx)``.
+
+    Returns ``(d_h, d_v, col_left, mask)`` -- disparities in px, the left eye's
+    column coordinate in px, and the mask of samples inside the image.
+    ``col_left`` is returned rather than reduced here so that
+    :func:`assert_preconditions` can measure peripheral reach itself.
+    """
     azimuths = np.linspace(fx.azimuth - span, fx.azimuth + span, n)
     points = vieth_muller_points(rig, fx, azimuths)
     d_h, d_v = toed_in_disparity(points, rig, fx, k=k)
     col = project_toed_in(points, rig, fx, k=k).left[..., 1]
-    return d_h, d_v, np.abs(col) <= IMAGE_HALF_WIDTH
+    return d_h, d_v, col, np.abs(col) <= IMAGE_HALF_WIDTH
 
 
-def assert_preconditions(rig, fx, mask, col_reach):
+def assert_preconditions(rig, fx, col, mask):
     """Guard against the vacuous pass (`docs/plans/fixation-migration.md` 69-85).
 
     Reads ``fixation.vergence``. The radius via ``vieth_muller_radius(rig)``
     would be ``inf`` for every rig in this file, and the assertion would then
     hold on a horopter that had degenerated to the plane at infinity.
+
+    Takes ``col`` and ``mask`` and derives the peripheral reach **here**, rather
+    than accepting a reach argument. An earlier version took the number, and two
+    of its three call sites passed a constant -- a guard that cannot fail, which
+    is the exact defect this file exists to rule out. Deriving it from the same
+    arrays the assertions run on makes that unexpressible.
     """
     assert fx.vergence > 0.0
     radius = rig.baseline / (2.0 * np.sin(fx.vergence))
     assert np.isfinite(radius) and radius > 0.0
     assert mask.sum() > 100, "no imageable samples: nothing was actually compared"
-    assert col_reach > 100.0, "samples never reach the periphery the residual lives at"
+    reach = np.abs(col[mask]).max()
+    assert reach > 100.0, f"samples reach only {reach:.1f} px; the residual lives at the edge"
 
 
 def test_zero_horizontal_disparity_on_the_vieth_muller_circle(toed_rig):
@@ -359,33 +372,37 @@ def test_zero_horizontal_disparity_on_the_vieth_muller_circle(toed_rig):
     """
     for el, mu, k in itertools.product((0.0, 0.149, 0.2), VERGENCES, KS):
         fx = Fixation(0.0, el, mu)  # sagittal
-        d_h, _, mask = on_circle(toed_rig, fx, k)
-        assert_preconditions(toed_rig, fx, mask, np.abs(d_h[mask]).size and 160.0)
+        d_h, _, col, mask = on_circle(toed_rig, fx, k)
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(d_h[mask]).max() < 1e-12
 
     for az, mu, k in itertools.product((-0.25, 0.13, 0.25), VERGENCES, KS):
         fx = Fixation(az, 0.0, mu)  # horizontal
-        d_h, _, mask = on_circle(toed_rig, fx, k)
+        d_h, _, col, mask = on_circle(toed_rig, fx, k)
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(d_h[mask]).max() < 1e-12
 
     for az, el, mu in itertools.product((0.13, 0.25), (0.149, 0.2), (0.064, 0.16)):
         for k in (0.0, 0.25):
             fx = Fixation(az, el, mu)
-            d_h, _, mask = on_circle(toed_rig, fx, k)
-            col = project_toed_in(
-                vieth_muller_points(
-                    toed_rig, fx, np.linspace(fx.azimuth - 0.25, fx.azimuth + 0.25, 801)
-                ),
-                toed_rig,
-                fx,
-                k=k,
-            ).left[..., 1]
-            assert_preconditions(toed_rig, fx, mask, np.abs(col[mask]).max())
-            measured = np.abs(d_h[mask]).max()
-            law = abs(np.abs(col[mask]).max() * mu * az * el**2 * (k - 0.5) / 2.0)
-            assert measured == pytest.approx(law, rel=0.10)
+            d_h, _, col, mask = on_circle(toed_rig, fx, k)
+            assert_preconditions(toed_rig, fx, col, mask)
+            # Pointwise, not max against max: the two maxima need not fall at
+            # the same sample, so comparing them would agree for a reason the
+            # law does not supply -- the same objection that replaced the
+            # differential form of the A2 meridian test with a per-eye one.
+            predicted = col[mask] * mu * az * el**2 * (k - 0.5) / 2.0
+            measured = d_h[mask]
+            # Scale-free residual bound, valid through the sign change at
+            # col = 0 where both sides vanish and a ratio means nothing.
+            assert np.abs(measured - predicted).max() < 0.10 * np.abs(predicted).max()
+            # ...and a genuine pointwise relative agreement over the bulk.
+            significant = np.abs(predicted) > 1e-3
+            assert significant.sum() > 100
+            np.testing.assert_allclose(measured[significant], predicted[significant], rtol=0.10)
         fx = Fixation(az, el, mu)
-        d_h, _, mask = on_circle(toed_rig, fx, 0.5)
+        d_h, _, col, mask = on_circle(toed_rig, fx, 0.5)
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(d_h[mask]).max() < 5e-3
 
 
@@ -405,11 +422,15 @@ def test_vertical_disparity_on_the_vieth_muller_circle_is_nonzero_at_elevated_ga
     """
     for az, el, mu in itertools.product((0.0, 0.13), (0.149, 0.2), (0.064, 0.16)):
         fx = Fixation(az, el, mu)
-        _, d_v, mask = on_circle(toed_rig, fx, 0.25)
+        _, d_v, col, mask = on_circle(toed_rig, fx, 0.25)
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(d_v[mask]).max() > 0.05
     for az, mu in itertools.product((0.0, 0.13, 0.25), VERGENCES):
         fx = Fixation(az, 0.0, mu)  # elevation 0: the plane of regard is the XZ plane
-        _, d_v, mask = on_circle(toed_rig, fx, 0.25)
+        _, d_v, col, mask = on_circle(toed_rig, fx, 0.25)
+        # The exact-zero half needs the guard as much as the payoff test does:
+        # an empty mask would satisfy `< 1e-12` without comparing anything.
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(d_v[mask]).max() < 1e-12
 
 
@@ -434,9 +455,8 @@ def test_perturbed_vergence_breaks_the_horopter_zero(toed_rig):
         points = vieth_muller_points(toed_rig, fx, azimuths)  # unperturbed circle
         base, _ = toed_in_disparity(points, toed_rig, fx, k=0.25)
         moved, _ = toed_in_disparity(points, toed_rig, perturbed, k=0.25)
-        mask = (
-            np.abs(project_toed_in(points, toed_rig, fx, k=0.25).left[..., 1]) <= IMAGE_HALF_WIDTH
-        )
-        assert_preconditions(toed_rig, fx, mask, 160.0)
+        col = project_toed_in(points, toed_rig, fx, k=0.25).left[..., 1]
+        mask = np.abs(col) <= IMAGE_HALF_WIDTH
+        assert_preconditions(toed_rig, fx, col, mask)
         assert np.abs(moved[mask]).max() > 0.1
         assert np.abs(moved[mask]).max() > 10.0 * max(np.abs(base[mask]).max(), 1e-12)
