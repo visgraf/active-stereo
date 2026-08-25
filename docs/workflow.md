@@ -42,7 +42,8 @@ Reading list, in order:
 **Role boundary.** Chat does derivation, adversarial review, and prompts for
 Code. Not repo code, not implementation detail. Method note
 [001](method/001-enforcement-and-disclosure.md)'s Finding 2 is blunt about why:
-the surface holding the files beats the surface holding excerpts, two for two.
+the surface holding the files beats the surface holding excerpts — structurally,
+because one can check and the other cannot, not as a scoreboard.
 A Chat-authored implementation is a hypothesis at best, and reviewing Code's
 reasoning is worth more than competing with its file access.
 
@@ -57,13 +58,22 @@ creates:
   of anything in flight — so Code can verify it and *reject a stale prompt*
   rather than execute it against a repo it no longer describes.
 - **Invite the contradiction.** A prompt that says "verify, do not adopt" gets
-  a better answer than one that asserts. Every numeric error caught so far was
-  caught because it was flagged as unverified rather than stated as fact.
+  a better answer than one that asserts. Flagging a claim as unverified is what
+  makes the forward contract fire at all — it is the cheapest way to convert a
+  value back into a hypothesis.
+- **Do not ratify Code's numbers.** A figure arriving *from* Code may be adopted
+  as a finding, but not used to settle a disagreement or retire a standing claim
+  without first asking what it was measured against. This one is normative in
+  CLAUDE.md §5, not merely here; see
+  [004](method/004-reproducibility-and-the-reverse-direction.md) for the episode
+  that put it there.
 
 *Status note:* 002's Finding 3 proposed the repo-state rule for CLAUDE.md §5 and
 recorded it as "not yet applied". Writing it here makes it normative in the
 workflow while the constitution still does not carry it. Whether it graduates to
-CLAUDE.md §5 is a maintainer decision, not a documentation one.
+CLAUDE.md §5 is a maintainer decision, not a documentation one. The
+non-ratification bullet above *has* graduated — 003 proposed the reverse
+direction, 004 argued the asymmetric form, and §5 now carries it.
 
 **Norms that bind prompts, not just Code.** Pointers rather than a restatement,
 so this cannot drift out of sync with the constitution: ADRs are append-only and

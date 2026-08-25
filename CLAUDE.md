@@ -133,9 +133,25 @@ with pointers, not values**. Before recording one anywhere durable (an ADR, a
 findings entry, a commit message), verify it against the cited file. Report
 discrepancies back to me rather than silently correcting them: the divergence
 is itself information about the upstream surface. Flagging your own inputs as
-unverified until checked is the required behaviour — it is what has caught
-every such error so far (two in one thread, both from truncated excerpts; see
-`docs/method/001-enforcement-and-disclosure.md`).
+unverified until checked is the required behaviour. It works because the
+*receiver* holds the files and can check, which the sender by construction
+cannot (`docs/method/001-enforcement-and-disclosure.md`).
+
+**The reverse direction (Code → Chat) is asymmetric, deliberately.** A mirror of
+the rule above would be unenforceable — Chat holds excerpts by construction, so
+"Chat verifies Code's numbers" would rot into a formality. Each surface gets the
+obligation it can actually meet:
+
+- **Disclosure, on Code.** When reporting a derived number — a summary, a
+  findings entry, a commit message, or an answer back to Chat — name its inputs
+  and mark which were **measured** and which **assumed**. An assumed input that
+  goes unnamed is the defect; the assumption itself is not.
+- **Non-ratification, on Chat.** A number arriving from Code may be adopted as a
+  finding, but never used to settle a disagreement or retire a standing claim
+  without first asking what it was measured against.
+
+Worked failures of both, and why the asymmetry is the point:
+`docs/method/004-reproducibility-and-the-reverse-direction.md`.
 
 ### Memory is a cache, never the record
 
