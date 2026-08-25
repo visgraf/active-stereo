@@ -19,17 +19,38 @@ new functions, an optional field with a default, a new Protocol — so **0 exist
    `Fixation.forward(vergence)`. Unit tests: validation, frozen-ness,
    `forward()`.
 
-   *Declared open question — angle wrapping and equality.* Two `Fixation`s
+   *Declared open question — angle wrapping and equality. **Split at step 5**:
+   one half is resolved, the other still belongs to step 9.* Two `Fixation`s
    differing by 2π are the same oculomotor state but unequal as frozen
-   dataclasses. Equality stays structural for now (pinned by
-   `test_fixation_equality_is_structural_not_angular`, which fails if
-   wrapping is ever added casually). This first bites at step 9+, where
-   L6's `visited` list and inhibition of return move from pixel targets to
-   gaze space — and it likely dissolves there rather than here: inhibition
-   of return is metric (a radius), so L6 needs an angular-distance
-   function, not equality, and that function handles 2π by construction.
-   Resolve when step 9 lands; candidate homes are an angular-distance
-   helper in `geometry/oculomotor.py`, never a custom `__eq__`.
+   dataclasses. Equality stays structural (pinned by
+   `test_fixation_equality_is_structural_not_angular`, which fails if wrapping
+   is ever added casually).
+
+   **RESOLVED at step 5 — wrapping at the pixel→rotation boundary.** This block
+   said "first bites at step 9+"; it bit at step 5, on the *input* side.
+   `target_to_fixation` takes a `current` fixation that can be hand-written or
+   loaded from a config, so a wrapped elevation is reachable input.
+   `is_forward_gaze` is therefore the **geometry** test
+   (`cos(az)·cos(el) > 0`), not the angle test `abs(el) < pi/2`: the two
+   disagree on wrapped input, and only the geometry test is right there
+   (`el = 7.0` wraps to 0.7168 and is plainly forward). `target_to_fixation` is
+   2π-invariant in `current.elevation_down` to floating-point precision, tested.
+   Step 9 must not re-litigate this.
+
+   *Why the earlier reasoning missed it:* the argument that constructed
+   `Fixation`s are canonical (`atan2` returns in `(-pi, pi]`) is correct — for
+   the **output** direction. Wrapping arrived on the **input** direction, which
+   that argument does not cover. Same shape as the other misses this step: an
+   argument sound in the direction it was aimed, applied to the direction it was
+   not.
+
+   **STILL OPEN for step 9 — structural equality and L6's `visited`.** When
+   inhibition of return moves from pixel targets to gaze space, two states
+   differing by 2π compare unequal. This likely dissolves there rather than
+   needing a fix here: inhibition of return is metric (a radius), so L6 needs an
+   angular-distance function, not equality, and that function handles 2π by
+   construction. Candidate homes are an angular-distance helper in
+   `geometry/oculomotor.py`, never a custom `__eq__`.
 3. **`geometry/oculomotor.py`: `eye_rotations(rig, fixation, k=0.25)`.** The
    only place gaze becomes SO(3); torsion by the binocular Listing law with
    the tilt coefficient `k` as a **parameter, not a branch** (ADR-0014):

@@ -201,8 +201,7 @@ conditionally right, and the condition matters:
 (target 2.4408°, `P₀ = 1e-2 rad²`, constant measurement at `Z = 1.5 m`.) But
 `estimate_vergence_disparity` returns `(pi/2)·mean_var/n_valid` (`vergence.py:61-64`),
 and `n_valid` reaches 225 for a 15×15 window, so `d_var ≈ 0.00698 · mean_var`.
-That mapping puts the operating point in the *top* rows of the table for any
-plausible per-pixel matcher variance:
+That is a **mapping, not a location** ((pi/2)/225 = 0.006981):
 
 | `mean_var` px² | `d_var` px² | K, first update (bug) |
 |---|---|---|
@@ -211,18 +210,28 @@ plausible per-pixel matcher variance:
 | 1.00 | 6.98e-03 | 0.589 |
 | 4.00 | 2.79e-02 | 0.264 |
 
-**The per-pixel matcher variance was not measured here** — running the demo is
-out of scope for this branch — so this is a statement about the mapping, not
-about any run. What it establishes is the *shape*: `d_var` is divided by
-`n_valid`, so a well-populated window drives K toward 1 and hides the bug, while
-a sparse or high-variance window drives K toward 0 and freezes L5. With the
-correct conversion the result is flat at 2.4408–2.4421° across all five decades;
-that insensitivity is the real tell.
+**Where real runs sit on this curve is unmeasured.** No demo run was made on
+this branch, and the first version of this section asserted a landing point
+(`d_var ~ 1.7e-3`) derived from a per-pixel variance of 0.25 px² that was never
+measured — see §7.
 
-So the defect **self-conceals where matching is good and bites where matching is
-poor** — which is exp008's regime, not a uniform "L5 has been coasting on every
-run to date". Instrumentation should log the `d_var` distribution, not just K.
-Not fixed on this branch.
+What survives is the **monotone shape**, which follows from `K = P/(P+R)` alone:
+K falls as `d_var` rises, so anything that raises the per-pixel variance or
+shrinks `n_valid` (sparse texture, occlusion, a smaller window) moves L5 toward
+coasting on its prediction, and anything that lowers them moves L5 toward
+tracking correctly *despite* the unit error. The transition is somewhere inside
+the tabulated range — K runs 0.966 to 0.264 across the two decades of `mean_var`
+shown — but **which side of it a real run falls on is exactly what has not been
+established**, and the earlier claim that this is "exp008's regime" was a
+location claim resting on the fabricated figure.
+
+With the correct conversion the result is flat at 2.4408–2.4421° across all five
+decades; that insensitivity is the real tell, and unlike the severity it does not
+depend on where runs land.
+
+Instrumentation must therefore log the **`d_var` distribution**, not just K:
+without it the severity cannot be read off a run at all. Not fixed on this
+branch.
 
 ## 5. The `k`-mismatch residual is zero by construction
 
@@ -349,6 +358,25 @@ rig-fixed. A property of a type was asserted without checking the type. Both
 firings belong in the record, because the second shows the pattern surviving the
 first fix — a statistic proposed *as* the cure for an unstated analyst choice
 still contained one.
+
+**The 1.7e-3 figure, and how both surfaces ratified it.** The
+`d_var ~ 1.7e-3` landing point in §4 was produced here from an *assumed*
+per-pixel variance of 0.25 px² that was never measured, and then ratified
+twice from the other side: the `n_valid` analysis was called "better than mine"
+and a standing "L5 has been coasting" claim was withdrawn on its strength —
+without either surface asking whether 0.25 px² had been measured. That is
+003's Finding 5 exactly: one surface proposes, the other ratifies and
+amplifies, neither checks.
+
+**The asymmetry between the two catches in this thread is the important part.**
+The random-cloud discrepancy was caught *structurally* — two harnesses computing
+the same ill-posed statistic disagreed, and the disagreement did the work with
+nobody looking for it. This one produced no disagreement at all, because both
+surfaces accepted the same unchecked premise; it surfaced only when an audit was
+**explicitly requested**. A failure mode that needs an audit to surface is weaker
+evidence for the surfaces catching their own errors and stronger evidence for
+writing the Code → Chat direction into CLAUDE.md §5, where the handoff contract
+currently governs only the other direction.
 
 **Provenance, which is the argument.** This was caught because the discrepancy
 was **reported rather than adopted** — the CLAUDE.md §5 handoff contract firing
