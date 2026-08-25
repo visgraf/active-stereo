@@ -56,7 +56,15 @@ class EyeRotations:
     right: FloatArray
 
 
-def _require_forward_azimuth(fixation: Fixation) -> None:
+def require_forward_azimuth(fixation: Fixation) -> None:
+    """Raise unless ``fixation.azimuth`` lies in (-pi/2, pi/2).
+
+    Public because ``geometry/horopter.py`` needs the same domain, and the
+    alternative -- each module re-validating locally -- would put a second
+    copy of this rule and its error message in L1. The domain is a property
+    of the Vieth-Muller chord construction, not of any one function that
+    uses it.
+    """
     if not abs(fixation.azimuth) < np.pi / 2.0:
         raise ValueError(
             f"azimuth must lie in (-pi/2, pi/2), got {fixation.azimuth}: the fixation "
@@ -102,7 +110,7 @@ def fixation_distance(rig: StereoRig, fixation: Fixation) -> float:
     formula as :attr:`StereoRig.fixation_distance` — the two conventions
     agree on the forward axis by construction.
     """
-    _require_forward_azimuth(fixation)
+    require_forward_azimuth(fixation)
     mu = fixation.vergence
     if mu <= 0.0:
         return float("inf")
@@ -120,7 +128,7 @@ def fixation_point(rig: StereoRig, fixation: Fixation) -> FloatArray:
     Callers needing the parallel-gaze limit should work with the gaze
     direction instead, which is what :func:`eye_rotations` does internally.
     """
-    _require_forward_azimuth(fixation)
+    require_forward_azimuth(fixation)
     if fixation.vergence <= 0.0:
         raise ValueError("fixation point is at infinity at zero vergence")
     return fixation_distance(rig, fixation) * _cyclopean_direction(fixation)
@@ -172,7 +180,7 @@ def eye_rotations(rig: StereoRig, fixation: Fixation, k: float = 0.25) -> EyeRot
     """
     if not np.isfinite(k):
         raise ValueError(f"k must be finite, got {k}")
-    _require_forward_azimuth(fixation)
+    require_forward_azimuth(fixation)
     mu = fixation.vergence
     s, c = np.sin(k * mu), np.cos(k * mu)
     p_left = np.array([-s, 0.0, c])
