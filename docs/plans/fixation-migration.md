@@ -200,6 +200,106 @@ second environment, which is how this line was previously wrong.
    do in the current pipeline. It is *not* a free measurement of ADR-0016's open
    question. Report the mean and the mean-removed rms **separately**: the
    residual is dominated by a common mode (+2.55 px of 2.73 px rms).
+
+   🔒 **REQUIRED — the static path must warp by the identity.** `rig.vergence
+   != 0` ⇔ static off-axis capture ⇔ the pair is **already rectified** ⇔ the
+   correct warp is the **identity**. Enforce it so the wrong thing cannot be
+   constructed, in the shape of step 7's `render_at` raising on a converged rig —
+   not documented as a caution. Applying `H_e` to an already-parallel pair
+   assumes a toed-in capture that never happened, destroys row-wise
+   correspondence and biases depth, and does both silently; `exp001`–`exp007` are
+   the baseline it would corrupt. Measurements:
+   [step-6 preamble](../lab-notebook/2026-08-25-step-6-preamble.md) §1.
+
+   *Declared open questions (step-6 preamble, 2026-08-25).* Settle these **in the
+   step-6 plan**, not while implementing — same discipline as step 5's block, and
+   for the same reason: otherwise whoever reaches one first decides it, and it is
+   recorded nowhere. Numbers live in the notebook entry, not here.
+
+   a. **Rectification converts vertical disparity from a measurement into an
+   assumption.** `d_v` is identically zero in the rectified pair — exactly, every
+   point, every `k` — so ADR-0013's Consequences assigning it to L4 as a
+   viewing-distance cue, with the MiddEval3 `dyavg`/`dymax` hook
+   (`scenes/middeval3.py:72-77`), has **no input** under rectify-by-default. What
+   survives is the residual when assumed and actual geometry disagree: a
+   **fixation-error signal, an L5 quantity**, not an L4 distance cue.
+
+   *This is a second question and ADR-0013 merges them.* ADR-0013:153-158 frames
+   the fork as **matching** — 2D vs 1D search, ×(2V+1), every `DisparityMatcher`.
+   Whether the cue is *available* is a different axis, and is not mentioned there.
+
+   *Tension, recorded not resolved:* ADR-0013's Consequences say the biological
+   claim "strengthens again", and human vertical disparity is a cue **precisely
+   because eyes do not rectify**.
+
+   *The cue is lost from the PIPELINE, not the CODEBASE* — `toed_in_disparity`
+   (`projection.py:187`) still returns `(d_h, d_v)` on the raw pair. Said here so
+   Phase C does not spend a session on archaeology.
+
+   *What would resolve it:* ADR-0013's own deciding experiment — rectified-vs-2D
+   matching on toed-in stimuli at high eccentricity and vergence — extended to ask
+   whether the residual carries distance information, not only whether matching
+   degrades.
+
+   b. **The static-path guard is not an open question.** See the 🔒 requirement
+   above; it has a specified fix and must not be reopened as a choice.
+
+   c. **Validity gains a source — principle settled, mechanism open.** After the
+   warp each eye has three kinds of invalid: scene occlusion; behind-the-eye
+   geometry (eye-indexed, `projection.py:94-113`); and **pixels sourced outside
+   the raw image**.
+
+   *Settled, not to be relitigated:* warp-invalid is **its own mask**. ADR-0011
+   ("Missing ground truth is a fourth mask, not a value of the other three") and
+   CLAUDE.md §3's mask-before-mixing rule fix this between them. Collapsing
+   warp-invalid into occlusion-invalid makes half-occlusion statistics wrong at
+   the border, and half-occlusions are exp008's hypothesis — but that is the
+   *consequence* of the settled principle, not an argument still to be had.
+
+   *Open — the mechanism only:* does the warp **return** the mask separately, or
+   write `nan` into the warped image and let consumers recover it with
+   `np.isfinite`? Both honour the principle; they differ in whether a consumer can
+   distinguish warp-invalid from occlusion-invalid *after the fact*, which is
+   exactly what exp008's counting needs.
+
+   *What would resolve it:* a decision at step 6 taken with exp008's counting in
+   view, rather than after it.
+
+   d. **Resampling changes effective sample independence, and the sign of the
+   variance error depends on the estimator** — count-based underestimates,
+   curvature- and spread-based inflate, SGBM's constant is blind. A Phase C input
+   (`docs/roadmap.md:22`), not a defect. Filed as **#44**, marked derived from
+   reasoning rather than measured — nobody has run it.
+
+   e. **Does rectification consume the commanded fixation or L5's estimate?**
+   Every step-6 unit test images and rectifies at the *same* fixation, so `H_e` is
+   exact and the residual is identically zero. **That may also be true of the
+   closed loop**: the renderer renders at the *commanded* fixation, so if
+   rectification uses the same one, the residual is zero **by construction** —
+   there is no plant-noise model. A fixation-error tolerance binds only if
+   rectification consumes the *estimate*.
+
+   **Coupled to (a).** Rectifying at the estimate is what makes the
+   fixation-error residual observable; rectifying at the command is what makes it
+   vanish. One answer decides both.
+
+   *The tolerance is deliberately NOT measured yet.* Three rounds went into it
+   before this was noticed. *Measure before repair* (roadmap) has as its
+   corollary: **do not measure what may be structurally zero.** A step-11
+   acceptance criterion on it would be the exp001 exactly-0.0-foveal-MAE shape
+   this plan already flags at step 4.
+
+   *Two results from those rounds are kept, because they are about method rather
+   than the number.* **The support rule:** a residual must be measured
+   **in-bounds after the warp, both eyes** — a pixel that warps out of frame is
+   not available to the matcher, so including it measures a residual no matcher
+   can see. **And the `el = 0` rule attaches here:** at sagittal gaze the foveal
+   residual is zero *by symmetry*, so a step-11 criterion evaluated there cannot
+   fail. Step 5's standing rule applies — every geometric test uses `el != 0`
+   **and** `az != 0`. Third occurrence of that hole.
+
+   *What would resolve it:* deciding commanded-vs-estimate. The tolerance becomes
+   a real quantity only on the estimate branch.
 7. **`scenes/base.py`: `RefixableScene` Protocol** with the
    `rig.vergence == 0` contract, plus `StereoStimulus.fixation:
    Fixation | None = None` (`None` = static off-axis capture; every existing
@@ -207,6 +307,15 @@ second environment, which is how this line was previously wrong.
    are **not** instances; the loop driver's static degradation path is taken
    (`Fixation.forward(rig.vergence)`, never a raise); `render_at` on a
    converged rig raises `ValueError`.
+
+   ⚠ *Check whether step 6's static-path guard is still reachable.* Step 6
+   enforces "`rig.vergence != 0` ⇒ warp by the identity" as a **runtime** check.
+   This step puts `rig.vergence == 0` in the **type system**, so if rectification
+   only ever applies to refixable scenes, that check becomes **unreachable** — a
+   dead guard, and 003's `160.0 > 100.0` row is what that looks like when nobody
+   notices. Either promote it to structural and delete the runtime check, or keep
+   the check and record why it is still reachable. Do not leave it untested and
+   assumed live.
 8. **`scaling/belief.py`: `CyclopeanBelief(weight_fn=...)`.** Inverse depth
    on a fixed angular grid in the cyclopean head frame; recursive
    reprojection + fusion; `weight_fn` defaults to `fuse_mle` precision
