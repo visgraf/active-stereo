@@ -380,13 +380,22 @@ evidence for the surfaces catching their own errors and stronger evidence for
 writing the Code → Chat direction into CLAUDE.md §5, where the handoff contract
 currently governs only the other direction.
 
-**Provenance, which is the argument.** This was caught because the discrepancy
-was **reported rather than adopted** — the CLAUDE.md §5 handoff contract firing
-in the **Code → Chat** direction, which 003 records as ungoverned by §5. That is
-now two logged instances of the reverse direction mattering: 003's false premise
-(absence of the rule cost a merged contradiction) and this one (the behaviour
-happened anyway and caught a defect). If a fourth method note is written, that
-pairing is its content and its argument.
+**Provenance, which is the argument.** Both catches are the CLAUDE.md §5 handoff
+contract operating in the **Code → Chat** direction — numbers originating in Code
+and ratified by Chat — which 003 records as ungoverned by §5, since the rule as
+written governs numbers arriving *from* Chat. They were caught by different
+means, and the difference is the point:
+
+- the random-cloud figure, because the discrepancy was **reported rather than
+  adopted** — no one was looking for it, the two harnesses simply disagreed;
+- the `1.7e-3` figure, only because an **audit was explicitly requested** — both
+  surfaces had already agreed, so there was no disagreement to notice.
+
+That is two occasions in this thread, alongside 003's own false premise, where
+the absence of the rule in the reverse direction cost a merged contradiction. If
+a fourth method note is written, that is its content and its argument: the
+direction the contract does not cover has now produced one error the surfaces
+caught unprompted and one they did not.
 
 ## 8. Registered, not fixed
 
