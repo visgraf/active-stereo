@@ -10,7 +10,10 @@ from activestereo.geometry.oculomotor import (
     eye_rotations,
     fixation_distance,
     fixation_point,
+    is_forward_gaze,
+    rectification_rotation,
     require_forward_azimuth,
+    target_to_fixation,
 )
 from activestereo.geometry.projection import (
     BinocularProjection,
@@ -28,8 +31,11 @@ __all__ = [
     "eye_rotations",
     "fixation_distance",
     "fixation_point",
+    "is_forward_gaze",
     "project_toed_in",
+    "rectification_rotation",
     "require_forward_azimuth",
+    "target_to_fixation",
     "toed_in_disparity",
     "vieth_muller_circle",
     "vieth_muller_points",

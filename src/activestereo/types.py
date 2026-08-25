@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 
 import numpy as np
 from numpy.typing import NDArray
@@ -163,3 +164,84 @@ class Estimate:
         v = self.valid & (self.variance > 0)
         out[v] = 1.0 / self.variance[v]
         return out
+
+
+class RefusalReason(Enum):
+    """Why :func:`activestereo.geometry.oculomotor.target_to_fixation` declined a target.
+
+    A **closed enum**, not a string: L6 counts refusals *by kind*, and the kinds
+    are not interchangeable. ``DEPTH_UNAVAILABLE`` is **absence of evidence** --
+    the half-occlusion signal exp008 exists to measure -- while ``TOO_NEAR`` and
+    ``BACKWARD_GAZE`` are **confident nonsense**. One undifferentiated count
+    annihilates the mechanism the experiment is about, and string matching would
+    put the taxonomy outside the type system where nothing checks it.
+
+    Members
+    -------
+    DEPTH_UNAVAILABLE
+        No usable depth at the target: :attr:`Estimate.valid` is false there
+        (``nan`` value, or the ``inf``-variance refusal sentinel that
+        ``control.vergence.estimate_vergence_disparity`` already emits).
+    DEPTH_NONPOSITIVE
+        Depth at the target is ``<= 0``. Nothing is unprojectable from it.
+    TOO_NEAR
+        The unprojected point lies within half a baseline of the cyclopean
+        origin, where the Vieth-Muller chord has no forward solution and the
+        vergence inversion returns the wrong branch.
+    BACKWARD_GAZE
+        The proposed gaze elevation reaches ``|el| >= pi/2``: the fixation point
+        is at or behind the interaural axis. Independent of the depth estimate
+        -- such a target is refused even with perfect depth -- which is why it
+        is reported alongside ``TOO_NEAR`` rather than ranked against it.
+    """
+
+    DEPTH_UNAVAILABLE = auto()
+    DEPTH_NONPOSITIVE = auto()
+    TOO_NEAR = auto()
+    BACKWARD_GAZE = auto()
+
+
+@dataclass(frozen=True)
+class FixationProposal:
+    """A proposed oculomotor state and the variance of its vergence component.
+
+    Attributes
+    ----------
+    fixation : Fixation
+        Where the eyes would point, radians, cyclopean head frame.
+    vergence_variance : float
+        Variance of ``fixation.vergence``, rad^2, by first-order propagation of
+        the target's depth variance.
+
+    Deliberately a named type in a union with :class:`TargetRefused` rather than
+    one dataclass with optional fields: optional fields give a type checker
+    nothing to enforce, while the union forces the caller to narrow before
+    ``.fixation`` exists.
+    """
+
+    fixation: Fixation
+    vergence_variance: float
+
+
+@dataclass(frozen=True)
+class TargetRefused:
+    """A target the pixel->rotation boundary declined, with every reason it triggered.
+
+    Attributes
+    ----------
+    reasons : frozenset[RefusalReason]
+        **A set, because co-occurrence is data.** A target can be both
+        ``TOO_NEAR`` and ``BACKWARD_GAZE``; returning one reason would count it
+        once and make the co-occurrence unrecoverable, which is the same
+        reduction as collapsing distinct kinds into a bare ``None`` one level
+        down. L6 counts by kind *and* by co-occurrence.
+
+    Never empty: a refusal with no reason is a bug in the refusing function, not
+    a representable state.
+    """
+
+    reasons: frozenset[RefusalReason]
+
+    def __post_init__(self) -> None:
+        if not self.reasons:
+            raise ValueError("a refusal must carry at least one reason")

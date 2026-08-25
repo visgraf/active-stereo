@@ -5,7 +5,14 @@ import dataclasses
 import numpy as np
 import pytest
 
-from activestereo.types import Estimate, Fixation, StereoRig
+from activestereo.types import (
+    Estimate,
+    Fixation,
+    FixationProposal,
+    RefusalReason,
+    StereoRig,
+    TargetRefused,
+)
 
 
 def test_rig_rejects_nonphysical_parameters():
@@ -107,3 +114,43 @@ def test_precision_is_zero_on_invalid_entries():
     )
     np.testing.assert_allclose(e.precision, [4.0, 0.0, 0.0])
     np.testing.assert_array_equal(e.valid, [True, False, True])
+
+
+# --- the pixel->rotation boundary's result types (migration step 5) -----------
+
+
+def test_refusal_reasons_are_a_closed_set():
+    """A closed enum, not strings: L6 counts by kind and the kinds are checkable.
+
+    If a reason is added, this fails and whoever added it has to decide whether
+    L6's counter and exp008's analysis handle the new kind -- which is the point
+    of putting the taxonomy in the type system.
+    """
+    assert {r.name for r in RefusalReason} == {
+        "DEPTH_UNAVAILABLE",
+        "DEPTH_NONPOSITIVE",
+        "TOO_NEAR",
+        "BACKWARD_GAZE",
+    }
+
+
+def test_a_refusal_must_carry_a_reason():
+    """An empty refusal is a bug in the refusing function, not a representable state."""
+    with pytest.raises(ValueError, match="at least one reason"):
+        TargetRefused(frozenset())
+
+
+def test_a_refusal_carries_every_reason_that_fired():
+    """Co-occurrence is data: a target can be wrong in more than one way."""
+    both = TargetRefused(frozenset({RefusalReason.TOO_NEAR, RefusalReason.BACKWARD_GAZE}))
+    assert both.reasons == {RefusalReason.TOO_NEAR, RefusalReason.BACKWARD_GAZE}
+    assert len(both.reasons) == 2
+
+
+def test_boundary_result_types_are_frozen():
+    proposal = FixationProposal(fixation=Fixation(0.1, 0.2, 0.064), vergence_variance=1e-6)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        proposal.vergence_variance = 0.0
+    refused = TargetRefused(frozenset({RefusalReason.TOO_NEAR}))
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        refused.reasons = frozenset()
