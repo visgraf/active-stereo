@@ -27,8 +27,7 @@
       "Edit(experiments/**)",
       "Edit(configs/**)",
       "Edit(docs/lab-notebook/**)",
-      "Edit(docs/method/**)",
-      "Edit(docs/roadmap.md)"
+      "Edit(docs/method/**)"
     ],
     "ask": [
       "Bash(git commit*)",
@@ -42,7 +41,8 @@
       "Edit(paper/**)",
       "Edit(docs/decisions/README.md)",
       "Edit(docs/decisions/0*.md)",
-      "Write(docs/decisions/**)"
+      "Write(docs/decisions/**)",
+      "Edit(docs/roadmap.md)"
     ],
     "deny": [
       "Bash(git push --force*)",
