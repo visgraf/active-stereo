@@ -146,3 +146,33 @@ pinned by `tests/unit/test_projection_toedin.py`; the rest are measurements
 recorded with their sampling window and asserted nowhere. The k = 1/2 per-eye
 meridian pin discriminates at 8.1e-6 px for a 1e-5 relative perturbation of k,
 against a 1e-12 px tolerance — it cannot pass vacuously.
+
+---
+
+## Correction (2026-08-25, after merge)
+
+The closing sentence of §1 — "This is the second time in three days that taking
+an absolute value destroyed a structural result (cf. the τ-table tolerance in
+the companion entry); both times the signed quantity was the well-behaved one" —
+is **withdrawn**.
+
+The quartering ladder is **one** instance, not the second of two. The τ-table
+tolerance failure is diagnosed correctly in
+[the companion entry](2026-08-25-plane-of-regard-optimum.md) as a **dropped
+term** — `ψ⁰ ≈ −az_e·el/2` — not a loss of sign. The prediction
+`x·(τ_R² − τ_L²)/2` contains squares, not absolute values, and the omitted term
+would have been omitted from a signed formulation just the same. Two entries
+written the same day contradicted each other about one event; this one was
+wrong.
+
+Everything else in §1 stands: the crossing at η ≈ 0.0143, the `|·|`-ladder
+ratios 4.22 / 4.63 / 10.08, and the conclusion that the signed form is
+load-bearing here are all measured and unaffected.
+
+**The sentence is left in place above rather than edited.** It was written,
+cited — it is what commissioned
+[method note 003](../method/003-premature-reduction.md) — and then withdrawn,
+and that sequence is the content. Silently correcting it would delete the
+instance the method note is about: a summary of this session's own work,
+generalised past what had been verified, and ratified downstream because nothing
+governs claims flowing in that direction.
