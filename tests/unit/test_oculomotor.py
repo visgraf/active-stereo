@@ -245,3 +245,123 @@ def test_eye_rotations_result_is_frozen(rig):
     assert isinstance(rot, EyeRotations)
     with pytest.raises(dataclasses.FrozenInstanceError):
         rot.left = np.eye(3)
+
+
+# --- ADR-0016: the plane-of-regard alignment optimum -------------------------
+# Test-local projection and point sampling. geometry.projection has no toed-in
+# projection yet (migration step 4), and even once it does, pinning eye_rotations
+# against it would compare the module against its own internals.
+
+
+def project_px(P, R, C, f):
+    """Pinhole-project head-frame points into one eye.
+
+    Parameters: ``P`` ``(..., 3)`` metres in the cyclopean head frame, ``R`` the
+    eye's head-frame orientation, ``C`` ``(3,)`` the eye's optical centre in
+    metres, ``f`` focal length in pixels. Returns ``(x, y)`` pixel offsets from
+    that eye's principal point, ``x`` right and ``y`` down. The principal point
+    itself is irrelevant here: every assertion below is on a difference between
+    the eyes, and a shared offset cancels.
+    """
+    v = (P - C) @ R
+    return f * v[..., 0] / v[..., 2], f * v[..., 1] / v[..., 2]
+
+
+def plane_of_regard_points(rig, el, mu, half_width=0.2, n=51, scales=(0.7, 1.0, 1.4)):
+    """Points spanning the plane of regard: ``(N, 3)`` metres, cyclopean head frame.
+
+    Under ADR-0015 the plane of regard at elevation ``el`` is the horizontal
+    plane rotated about the interaural +X axis until +Z reaches
+    ``(0, sin el, cos el)``, and it contains the baseline at every azimuth.
+    Sampled at in-plane azimuths within +/- ``half_width`` rad of straight ahead
+    and at radial multiples ``scales`` of the fixation distance.
+
+    The *plane* is the alignment criterion, not the Vieth-Muller circle inside
+    it: the two disagree off-axis by four orders of magnitude (ADR-0016). The
+    depths are arbitrary because the property under test holds for every point
+    of the plane, so ``fixation_distance`` here only sets a sensible scale.
+    """
+    D = fixation_distance(rig, Fixation(0.0, el, mu))
+    phi = np.linspace(-half_width, half_width, n)
+    in_plane = np.array([1.0, 0.0, 0.0])
+    forward = np.array([0.0, np.sin(el), np.cos(el)])
+    dirs = np.sin(phi)[:, None] * in_plane + np.cos(phi)[:, None] * forward
+    return np.concatenate([s * D * dirs for s in scales], axis=0)
+
+
+def max_vertical_disparity(rig, fx, k, points):
+    """max |row_L - row_R| in pixels over ``points``; the misalignment observable."""
+    rot = eye_rotations(rig, fx, k=k)
+    half_b = rig.baseline / 2.0
+    _, y_left = project_px(points, rot.left, np.array([-half_b, 0.0, 0.0]), rig.focal_px)
+    _, y_right = project_px(points, rot.right, np.array([half_b, 0.0, 0.0]), rig.focal_px)
+    return float(np.abs(y_left - y_right).max())
+
+
+def test_plane_of_regard_alignment_optimum_is_k_half():
+    """ADR-0016: at sagittal gaze, k = 1/2 zeroes vertical disparity in the
+    plane of regard -- exactly, and independently of baseline, focal length,
+    vergence and elevation.
+
+    This is the standing pin ADR-0014:116-118 asked for, with the value
+    corrected: ADR-0014 predicted the null at k = 0.25 and instructed that a
+    minimum elsewhere be read as an eye_rotations sign/axis error. It is not
+    one; see ADR-0016 and the 2026-08-25 lab-notebook entry for the independent
+    reimplementation that discharges that clause.
+
+    Deliberately an assertion about a stated k, not a minimisation: searching
+    for the argmin and asserting it equals 0.5 would bake the search into the
+    pin, and the argmin drifts off 0.5 off-axis while the analytic statement
+    below does not.
+    """
+    for baseline, focal in ((0.064, 800.0), (0.10, 1200.0), (0.03, 400.0)):
+        rig = StereoRig(baseline=baseline, focal_px=focal)
+        for mu, el in itertools.product((0.064, 0.16), (0.149, 0.3)):
+            points = plane_of_regard_points(rig, el, mu)
+            fx = Fixation(0.0, el, mu)
+            assert max_vertical_disparity(rig, fx, 0.5, points) < 1e-12
+            # Negative control: the default and strict Listing both miss it by
+            # ~0.2-1 px, nine orders above the tolerance above. Without this a
+            # projection that returned zeros would pass.
+            for k in (0.0, 0.25):
+                assert max_vertical_disparity(rig, fx, k, points) > 1e-3
+
+
+def helmholtz_rotation(az, el):
+    """Rx(el) @ Ry(az): the Helmholtz composition of ADR-0015, test-local.
+
+    Elevation about the fixed interaural +X axis first, then azimuth within the
+    elevated plane. Head frame: +X right, +Y down, +Z forward, right-handed.
+    """
+    ce, se, ca, sa = np.cos(el), np.sin(el), np.cos(az), np.sin(az)
+    Rx = np.array([[1.0, 0.0, 0.0], [0.0, ce, se], [0.0, -se, ce]])
+    Ry = np.array([[ca, 0.0, sa], [0.0, 1.0, 0.0], [-sa, 0.0, ca]])
+    return Rx @ Ry
+
+
+def test_tilted_listing_at_k_half_is_helmholtz(rig):
+    """ADR-0016, the reason the k = 1/2 null is exact rather than first-order:
+    at sagittal gaze the tilted-Listing composition A(p->g) @ A(z->p) *is* the
+    Helmholtz rotation of the eye's own gaze, identically.
+
+    Helmholtz composition carries no torsion about the plane of regard
+    (ADR-0015), so the plane images on the horizontal meridian of both retinas
+    and vertical disparity vanishes there for every point at once. The
+    spherical-excess cancellation that predicts k = 1/2 to first order is this
+    identity linearised. Needs no projection, so it fails independently of
+    test_plane_of_regard_alignment_optimum_is_k_half.
+    """
+    for el, mu in itertools.product((0.05, 0.149, 0.3), (0.02, 0.064, 0.16, 0.35)):
+        fx = Fixation(0.0, el, mu)
+        rot = eye_rotations(rig, fx, k=0.5)
+        for R, g in zip((rot.left, rot.right), eye_gazes(rig, fx), strict=True):
+            # The eye's own Helmholtz coordinates, read off its gaze direction.
+            az_e = np.arcsin(np.clip(g[0], -1.0, 1.0))
+            el_e = np.arctan2(g[1], g[2])
+            np.testing.assert_allclose(R, helmholtz_rotation(az_e, el_e), atol=1e-12)
+        # Negative control: the identity is a property of k = 1/2 alone.
+        rot_default = eye_rotations(rig, fx, k=0.25)
+        for R, g in zip((rot_default.left, rot_default.right), eye_gazes(rig, fx), strict=True):
+            az_e = np.arcsin(np.clip(g[0], -1.0, 1.0))
+            el_e = np.arctan2(g[1], g[2])
+            assert np.abs(R - helmholtz_rotation(az_e, el_e)).max() > 1e-5

@@ -5,10 +5,10 @@ the [draft issue](../issues/fixation-as-oculomotor-state.md).
 Branch `feat/fixation-state`.
 
 **Contract: the suite is green at every step.** Each step is one commit;
-`pytest -q` (209 tests at the time of writing, all passing), `ruff check src
+`pytest -q` (266 tests as of 2026-08-25, all passing), `ruff check src
 tests`, and `mypy src` pass after each. Every step is additive — a new type,
 new functions, an optional field with a default, a new Protocol — so **0 of
-the 209 existing tests change**; each step ships its own new tests.
+the 266 existing tests change**; each step ships its own new tests.
 
 ## Order
 
