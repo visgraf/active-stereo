@@ -1,7 +1,8 @@
 # 2026-08-25 — Step 5: `target_to_fixation`, and three defects found on the way
 
-Branch `feat/target-to-fixation`, migration step 5
-([plan](../plans/fixation-migration.md)). Third entry of this date; the others
+Branch `feat/target-to-fixation`, migration step 5, PR #37
+([plan](../plans/fixation-migration.md)). Registered items are filed as
+issues #38-#42; see §8. Third entry of this date; the others
 are [the plane-of-regard optimum](2026-08-25-plane-of-regard-optimum.md) and
 [toed-in projection](2026-08-25-toed-in-projection-and-item-4.md).
 
@@ -170,10 +171,11 @@ Two further properties make this larger than naming a frame:
   `RefixableScene` arrives at step 7/10.
 
 `target_to_fixation`'s docstring says in the code that it contradicts §3 and that
-§3 is the one that is wrong. **Registered: a §3 amendment or its own ADR, before
+§3 is the one that is wrong. **Registered as #38: a §3 amendment or its own ADR, before
 step 8.** Amending the constitution is the maintainer's call, not this branch's.
 An additive one-line note on `scale_to_depth`'s docstring would stop the false
-invariant propagating at its source; raised with the maintainer, not done here.
+invariant propagating at its source — **#39**, deliberately separable and much
+smaller.
 
 What would actually *discriminate* the two readings is L4's real output on a
 rendered refixable pair at `el != 0` against the renderer's known fixation —
@@ -231,7 +233,7 @@ depend on where runs land.
 
 Instrumentation must therefore log the **`d_var` distribution**, not just K:
 without it the severity cannot be read off a run at all. Not fixed on this
-branch.
+branch — **#41**.
 
 ## 5. The `k`-mismatch residual is zero by construction
 
@@ -388,17 +390,22 @@ pairing is its content and its argument.
 
 ## 8. Registered, not fixed
 
-- **`StereoRig` carries no image dimensions** — *one* item, **two independent
-  bites in this step**, in unrelated registers: the out-of-bounds check (routed
+- **#40 — `StereoRig` carries no image dimensions.** *One* item, **two
+  independent bites in this step**, in unrelated registers: the out-of-bounds check (routed
   around by making `depth_at_target` field-shaped so the `Estimate` supplies
   `(H, W)`), and the residual statistic above (a 24 %/39 % two-surface
   disagreement). Two bites in one step is a stronger case for an ADR than either
   alone. Every consumer that needs the sensor extent currently reconstructs it
   from an array shape or invents it.
-- **CLAUDE.md §3's depth-frame invariant** — §3 amendment or ADR, before step 8
-  (§3 above).
-- **Phase B: the plant is unconstrained.** `abs(el) < pi/2` is 90°; human vertical
-  gaze is ~±50°. The reachability derivation has the policy able to walk to
+- **#38 — CLAUDE.md §3's depth-frame invariant.** §3 amendment or ADR, before
+  step 8 (§3 above). **#39** is the separable `scale_to_depth` docstring note
+  that stops it propagating at its source.
+- **#42 — Phase B: the plant is unconstrained.** `abs(el) < pi/2` is 90°; human
+  vertical gaze is ~±50°. Filed as a design issue, not an experiment: it is a
+  *constraint on* exp008, and **the exp008 issue must cross-reference it** so the
+  constraint is visible where it would contaminate a result. The reachability derivation has the policy able to walk to
   `el = 1.5` (86°) in ≥5 saccades. If it does that in exp008 the result reads as
   a finding about the policy when it is an artefact of an unconstrained plant.
-- **`demo_active_stereo.py:131`** — the px²/rad² conversion (§4).
+- **#41 — `demo_active_stereo.py:131`**, the px²/rad² conversion (§4). The
+  severity is variance-dependent and the operating point is unmeasured; the
+  issue carries the mapping, not a location.
