@@ -5,9 +5,17 @@ the [draft issue](../issues/fixation-as-oculomotor-state.md).
 Branch `feat/fixation-state`.
 
 **Contract: the suite is green at every step.** Each step is one commit;
-`pytest -q` (331 tests as of step 5, 2026-08-25, all passing), `ruff check src
-tests`, and `mypy src` pass after each. Every step is additive — a new type,
-new functions, an optional field with a default, a new Protocol — so **0 existing tests change**; each step ships its own new tests.
+`pytest -q`, `ruff check src tests`, and `mypy src` pass after each. Every step
+is additive — a new type, new functions, an optional field with a default, a new
+Protocol — so **0 existing tests change**; each step ships its own new tests.
+
+**Quote the delta, not the absolute.** Test counts here are
+**environment-conditional**: six test modules `importorskip` optional extras, so
+32 tests are collected only with the `cv` extra installed. Measured at step 5 —
+with `cv`: 280 on `main` (2d5ce20) → 331; `[dev]` only: 248 → 299 (298 passed,
+1 skipped). **The invariant across both is the delta: step 5 adds 51 tests and
+changes 0 existing ones.** An unconditioned absolute cannot be reproduced by a
+second environment, which is how this line was previously wrong.
 
 ## Order
 
@@ -143,17 +151,33 @@ new functions, an optional field with a default, a new Protocol — so **0 exist
    compounding ADR-0013 flagged and exp008 exists to measure. A correct
    derivative of a miscalibrated quantity is still miscalibrated.
 
-   c. **RESOLVED — it did not arrive.** Constructed `Fixation`s are canonical
-   by construction (`arcsin` and `atan2` ranges), so wrapping never bites here.
-   What arrived instead was a *different* failure needing a different fix: the
-   elevation **domain** hole, closed additively by `is_forward_gaze`. Step 2's
-   wrapping question stands as written, for step 9. Original text:
-   **Step 2's declared open question may arrive here, not at step 9+.**
-   Step 5 is the first place `Fixation`s are *constructed* rather than
-   hand-written, so it is the first place a wrapped or out-of-domain angle can
-   be produced by code rather than by a test author. Step 2's block still
-   reads "resolve when step 9 lands" and is left as written; this records only
-   that the expectation may have moved earlier.
+   c. **PARTLY ARRIVED — and the original framing had the direction wrong.**
+   An earlier revision of this sub-block said "it did not arrive"; that
+   contradicted step 2's block, which records that it did. Three separate things
+   were being run together:
+
+   1. *Output direction — did not arrive.* Constructed `Fixation`s are canonical
+      (`arcsin` and `atan2` ranges), so nothing step 5 **produces** is ever
+      wrapped. The original argument was sound — for this direction only.
+   2. *Input direction — arrived, and is resolved at step 5.* `current` is an
+      **input**: it can be hand-written or loaded from a config, so a wrapped
+      elevation is reachable. Hence `is_forward_gaze` is the geometry test
+      `cos(az)·cos(el) > 0` rather than `abs(el) < pi/2`, and
+      `target_to_fixation` is 2π-invariant in `current.elevation_down`, tested.
+      **Step 9 must not re-litigate this half**; see step 2's block, which is
+      split accordingly.
+   3. *The elevation **domain** hole — a third thing entirely*, neither wrapping
+      nor equality: `Fixation(0.1, 2.0, 0.064)` is admitted and points backward.
+      Closed additively by `is_forward_gaze`. Do not merge it into the wrapping
+      category — it is a different failure and took a different fix.
+
+   Original text, retained for the trace: **Step 2's declared open question may
+   arrive here, not at step 9+.** Step 5 is the first place `Fixation`s are
+   *constructed* rather than hand-written, so it is the first place a wrapped or
+   out-of-domain angle can be produced by code rather than by a test author.
+   ~~Step 2's block still reads "resolve when step 9 lands" and is left as
+   written~~ — no longer true: that block was split at step 5, and its input-side
+   half is resolved there.
 6. **`geometry/rectify.py`.** Exact per-eye rotation homographies
    `H_e = K R_rectᵀ R_e K⁻¹` (raw eye → rectified) + ADR-0002-masked bilinear
    warp (masks warp nearest-neighbour, validity masked before mixing).

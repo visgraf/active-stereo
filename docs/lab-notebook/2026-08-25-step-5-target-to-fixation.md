@@ -370,7 +370,7 @@ without either surface asking whether 0.25 px² had been measured. That is
 003's Finding 5 exactly: one surface proposes, the other ratifies and
 amplifies, neither checks.
 
-**The asymmetry between the two catches in this thread is the important part.**
+**The asymmetry between the two *kinds* of catch is the important part.**
 The random-cloud discrepancy was caught *structurally* — two harnesses computing
 the same ill-posed statistic disagreed, and the disagreement did the work with
 nobody looking for it. This one produced no disagreement at all, because both
@@ -380,22 +380,37 @@ evidence for the surfaces catching their own errors and stronger evidence for
 writing the Code → Chat direction into CLAUDE.md §5, where the handoff contract
 currently governs only the other direction.
 
-**Provenance, which is the argument.** Both catches are the CLAUDE.md §5 handoff
-contract operating in the **Code → Chat** direction — numbers originating in Code
-and ratified by Chat — which 003 records as ungoverned by §5, since the rule as
-written governs numbers arriving *from* Chat. They were caught by different
-means, and the difference is the point:
+**Provenance — and a collapse that happened inside this section.** The first
+version of this paragraph called both catches "the CLAUDE.md §5 handoff contract
+operating in the **Code → Chat** direction". That is false, and how it is false
+makes it **the sharpest instance of 003's pattern in this entry**: it grouped
+three numeric disagreements by **surface resemblance** — all three were numbers
+two surfaces computed differently — and annihilated **direction**, which is the
+only property that makes the category an argument for amending §5 at all.
+Written, unnoticed, in the section documenting the mechanism.
 
-- the random-cloud figure, because the discrepancy was **reported rather than
-  adopted** — no one was looking for it, the two harnesses simply disagreed;
-- the `1.7e-3` figure, only because an **audit was explicitly requested** — both
-  surfaces had already agreed, so there was no disagreement to notice.
+Sorted by where each number originated:
 
-That is two occasions in this thread, alongside 003's own false premise, where
-the absence of the rule in the reverse direction cost a merged contradiction. If
-a fourth method note is written, that is its content and its argument: the
-direction the contract does not cover has now produced one error the surfaces
-caught unprompted and one they did not.
+- the random-cloud figure (`2.195e+01`) and the off-centre grid (`3.53 / 1.96`)
+  both originated in **Chat**, and were caught because the discrepancy was
+  **reported rather than adopted** — no one was looking for either; the two
+  harnesses simply disagreed. That is **Chat → Code, the direction §5 already
+  governs**, working exactly as written;
+- the `1.7e-3` figure originated in **Code** and was ratified by Chat, and
+  surfaced only because an **audit was explicitly requested** — both surfaces had
+  already agreed, so there was no disagreement to notice. That is
+  **Code → Chat, which §5 does not cover.**
+
+So **one** occasion in this thread, not two, alongside 003's own false premise.
+
+**The corrected argument is stronger than the collapsed one.** "Two occasions"
+was a tally of instances. What the sort shows is a *contrast*: the forward rule
+caught two Chat-originated errors with nobody looking for them, while the single
+reverse-direction error produced no disagreement to notice and needed a human to
+ask. A rule that demonstrably works, set against an absence that demonstrably
+does not, is better evidence for writing the Code → Chat direction into
+CLAUDE.md §5 than any tally of occasions could be. If a fourth method note is
+written, that contrast is its content and its argument.
 
 ## 8. Registered, not fixed
 
