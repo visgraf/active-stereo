@@ -95,7 +95,8 @@ the original failure:
 
 [`CLAUDE.md`](CLAUDE.md) is the project constitution, read automatically at the
 start of every session. [`docs/workflow.md`](docs/workflow.md) describes the
-autonomy ladder. Four custom commands live in `.claude/commands/`:
+surface roles, how to start a Chat session, and the autonomy ladder. Four custom
+commands live in `.claude/commands/`:
 
 | Command | Use |
 |---|---|

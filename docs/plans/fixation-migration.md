@@ -87,6 +87,36 @@ the 266 existing tests change**; each step ships its own new tests.
    pixel→rotation boundary. Takes the belief `Estimate` at the target (never
    a bare float — ADR-0013), returns `(Fixation, vergence_variance)`. Tests
    include first-order variance propagation.
+
+   *Declared open questions (unverified hypotheses from Chat, 2026-08-25).*
+   Settle these **in the step-5 plan**, not while implementing: each is a
+   decision that would otherwise get made by whoever reaches it first, and
+   recorded nowhere. Carried into this file rather than left in the prompt
+   they arrived in, per the CLAUDE.md §5 handoff contract — they are
+   hypotheses with pointers until the step-5 plan verifies them.
+
+   a. **The error contract at the boundary.** A pixel target carrying a bad
+   depth estimate can yield `vergence <= 0`, or an azimuth outside
+   `Fixation`'s `(-pi/2, pi/2)` domain (`geometry/oculomotor.py`,
+   `require_forward_azimuth`). Raising kills the active loop on a single bad
+   estimate; returning a refusal lets L6 pick another target. The choice is
+   not local — it propagates into L6's policy, which has to know whether a
+   target can be refused at all, so it cannot be deferred to the call site.
+
+   b. **The variance being propagated is the anti-calibrated one**
+   (exp004, exp006). First-order propagation can be *correct* while its input
+   is *wrong*, and downstream the two are indistinguishable. The
+   `vergence_variance` docstring must say so explicitly, or step 8's
+   `CyclopeanBelief` consumes it as trustworthy — which is exactly the
+   compounding ADR-0013 flagged and exp008 exists to measure. A correct
+   derivative of a miscalibrated quantity is still miscalibrated.
+
+   c. **Step 2's declared open question may arrive here, not at step 9+.**
+   Step 5 is the first place `Fixation`s are *constructed* rather than
+   hand-written, so it is the first place a wrapped or out-of-domain angle can
+   be produced by code rather than by a test author. Step 2's block still
+   reads "resolve when step 9 lands" and is left as written; this records only
+   that the expectation may have moved earlier.
 6. **`geometry/rectify.py`.** Exact per-eye rotation homographies
    `H_e = K R_rect R_eᵀ K⁻¹` + ADR-0002-masked bilinear warp (masks warp
    nearest-neighbour, validity masked before mixing). Round-trip tests.
