@@ -27,6 +27,7 @@ Template: [`0000-template.md`](0000-template.md).
 | [0014](0014-listing-coefficient-as-parameter.md) | The Listing coefficient is a parameter; 0.25 is a rectification property | Accepted (refines 0013); geometric justification corrected by [0016](0016-plane-of-regard-alignment-optimum.md) | 2026-08-23 |
 | [0015](0015-helmholtz-gaze-composition.md) | Gaze angles compose in Helmholtz order | Accepted (refines 0013) | 2026-08-23 |
 | [0016](0016-plane-of-regard-alignment-optimum.md) | The plane-of-regard alignment optimum is k = 1/2 | Accepted (corrects 0014) | 2026-08-25 |
+| [0017](0017-rectification-rotation-member.md) | The rectification rotation is the Helmholtz version rotation with azimuth zeroed | Accepted | 2026-08-25 |
 
 This index is maintained; it is a table of contents, not a decision, so the
 append-only rule does not cover it.

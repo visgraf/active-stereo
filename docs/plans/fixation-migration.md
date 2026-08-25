@@ -5,10 +5,9 @@ the [draft issue](../issues/fixation-as-oculomotor-state.md).
 Branch `feat/fixation-state`.
 
 **Contract: the suite is green at every step.** Each step is one commit;
-`pytest -q` (266 tests as of 2026-08-25, all passing), `ruff check src
+`pytest -q` (331 tests as of step 5, 2026-08-25, all passing), `ruff check src
 tests`, and `mypy src` pass after each. Every step is additive — a new type,
-new functions, an optional field with a default, a new Protocol — so **0 of
-the 266 existing tests change**; each step ships its own new tests.
+new functions, an optional field with a default, a new Protocol — so **0 existing tests change**; each step ships its own new tests.
 
 ## Order
 
@@ -83,19 +82,29 @@ the 266 existing tests change**; each step ships its own new tests.
    untouched) — is convenience only: an optional argument that silently
    changes which field is authoritative is its own hazard, and it must not
    substitute for the assertion.
-5. **`geometry/oculomotor.py`: `target_to_fixation`.** The single
-   pixel→rotation boundary. Takes the belief `Estimate` at the target (never
-   a bare float — ADR-0013), returns `(Fixation, vergence_variance)`. Tests
-   include first-order variance propagation.
+5. **`geometry/oculomotor.py`: `target_to_fixation`. (done)** The single
+   pixel→rotation boundary. Takes the belief `Estimate` **field** at the target
+   (never a bare float — ADR-0013; field-shaped because `StereoRig` carries no
+   image dimensions, so nothing else makes the bounds check possible), returns
+   `FixationProposal | TargetRefused`. Scope grew by `rectification_rotation`
+   and `is_forward_gaze`; the result types live in `types.py` so L4/L5/L6 can
+   consume them without a cross-layer import.
 
-   *Declared open questions (unverified hypotheses from Chat, 2026-08-25).*
-   Settle these **in the step-5 plan**, not while implementing: each is a
-   decision that would otherwise get made by whoever reaches it first, and
-   recorded nowhere. Carried into this file rather than left in the prompt
-   they arrived in, per the CLAUDE.md §5 handoff contract — they are
-   hypotheses with pointers until the step-5 plan verifies them.
+   Full record, including three defects found while verifying:
+   [step-5 notebook entry](../lab-notebook/2026-08-25-step-5-target-to-fixation.md).
+   The `R_rect` member choice is
+   [ADR-0017](../decisions/0017-rectification-rotation-member.md).
 
-   a. **The error contract at the boundary.** A pixel target carrying a bad
+   *Declared open questions — all three resolved in the step-5 plan, kept here
+   as written so the trace survives.* They were unverified hypotheses from Chat
+   (2026-08-25), carried into this file rather than left in the prompt they
+   arrived in, per the CLAUDE.md §5 handoff contract.
+
+   a. **RESOLVED — refuse on data quality, raise on caller error.** Refusal is
+   a `TargetRefused` carrying a **`frozenset[RefusalReason]`**, not one reason:
+   a target can be both `TOO_NEAR` and `BACKWARD_GAZE`, and collapsing
+   co-occurrence is the same reduction as collapsing distinct kinds into a bare
+   `None`. Original text: a pixel target carrying a bad
    depth estimate can yield `vergence <= 0`, or an azimuth outside
    `Fixation`'s `(-pi/2, pi/2)` domain (`geometry/oculomotor.py`,
    `require_forward_azimuth`). Raising kills the active loop on a single bad
@@ -103,7 +112,9 @@ the 266 existing tests change**; each step ships its own new tests.
    not local — it propagates into L6's policy, which has to know whether a
    target can be refused at all, so it cannot be deferred to the call site.
 
-   b. **The variance being propagated is the anti-calibrated one**
+   b. **RESOLVED — documented, and pinned by a test that can fail** (linear
+   pass-through across 8 decades; a docstring cannot fail). Original text:
+   **the variance being propagated is the anti-calibrated one**
    (exp004, exp006). First-order propagation can be *correct* while its input
    is *wrong*, and downstream the two are indistinguishable. The
    `vergence_variance` docstring must say so explicitly, or step 8's
@@ -111,15 +122,39 @@ the 266 existing tests change**; each step ships its own new tests.
    compounding ADR-0013 flagged and exp008 exists to measure. A correct
    derivative of a miscalibrated quantity is still miscalibrated.
 
-   c. **Step 2's declared open question may arrive here, not at step 9+.**
+   c. **RESOLVED — it did not arrive.** Constructed `Fixation`s are canonical
+   by construction (`arcsin` and `atan2` ranges), so wrapping never bites here.
+   What arrived instead was a *different* failure needing a different fix: the
+   elevation **domain** hole, closed additively by `is_forward_gaze`. Step 2's
+   wrapping question stands as written, for step 9. Original text:
+   **Step 2's declared open question may arrive here, not at step 9+.**
    Step 5 is the first place `Fixation`s are *constructed* rather than
    hand-written, so it is the first place a wrapped or out-of-domain angle can
    be produced by code rather than by a test author. Step 2's block still
    reads "resolve when step 9 lands" and is left as written; this records only
    that the expectation may have moved earlier.
 6. **`geometry/rectify.py`.** Exact per-eye rotation homographies
-   `H_e = K R_rect R_eᵀ K⁻¹` + ADR-0002-masked bilinear warp (masks warp
-   nearest-neighbour, validity masked before mixing). Round-trip tests.
+   `H_e = K R_rectᵀ R_e K⁻¹` (raw eye → rectified) + ADR-0002-masked bilinear
+   warp (masks warp nearest-neighbour, validity masked before mixing).
+   Round-trip tests.
+
+   ⚠ *This formula was corrected at step 5.* It previously read
+   `K R_rect R_eᵀ K⁻¹`, which is wrong in **factor order** — measured 2.7e+04 px
+   eye→rect and 2.7e+02 px rect→eye, i.e. incorrect in both directions under
+   either reading of `R_rect`. `R_rect` itself was an **undefined symbol** here
+   until step 5 defined it ([ADR-0017](../decisions/0017-rectification-rotation-member.md),
+   rect → head). **A round-trip test cannot catch this class of error** —
+   projecting and unprojecting with the same matrix is exact under any
+   invertible convention — so this step needs an independent-projection check,
+   not only the round trips listed above. Full record:
+   [step-5 notebook entry](../lab-notebook/2026-08-25-step-5-target-to-fixation.md).
+
+   Also from step 5: `R_rect` is `k`-independent but `H_e` is not, and the
+   residual vertical disparity measures **assumed-vs-actual `k` mismatch**,
+   which is identically zero when the imaging and rectifying `k` agree — as they
+   do in the current pipeline. It is *not* a free measurement of ADR-0016's open
+   question. Report the mean and the mean-removed rms **separately**: the
+   residual is dominated by a common mode (+2.55 px of 2.73 px rms).
 7. **`scenes/base.py`: `RefixableScene` Protocol** with the
    `rig.vergence == 0` contract, plus `StereoStimulus.fixation:
    Fixation | None = None` (`None` = static off-axis capture; every existing
@@ -165,10 +200,18 @@ the 266 existing tests change**; each step ships its own new tests.
     `rig_from_blender` / `BlenderRenderScene` branch on the recorded mode.
     `docs/architecture.md` horopter caveat rewritten; `horopter.py` docstring
     flipped ("this IS the model's horopter under Fixation-driven geometry");
-    `docs/decisions/README.md` index updated — 0013 added, 0007 marked
-    superseded, and the stale 0009–0012 rows backfilled (an index is not a
-    decision; the append-only rule protects decisions, not the table of
-    contents).
+    (The `docs/decisions/README.md` index clause that used to sit here is
+    struck: the index is maintained continuously — 0013–0017 are present and
+    0007 already reads "Superseded by 0013" — so it described work already
+    done and would have sent someone hunting stale rows that no longer exist.
+    An index is not a decision; the append-only rule protects decisions, not
+    the table of contents, so it is updated in the step that adds an ADR.)
+
+    **`CHANGELOG.md`: the whole fixation migration goes in here, at this step.**
+    It has not been touched since the exp003 era and steps 3, 4 and 5 each
+    skipped it. That is a standing omission, not step-5 drift — recorded as an
+    explicit line so it is written once, deliberately, rather than accumulating
+    silently.
 
 ## Deliberately out of scope
 

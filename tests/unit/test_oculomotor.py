@@ -7,6 +7,10 @@ vacuity trap (the exp001 exactly-0.0-foveal-MAE failure shape).
 
 import dataclasses
 import itertools
+import os
+import pathlib
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -16,8 +20,18 @@ from activestereo.geometry import (
     eye_rotations,
     fixation_distance,
     fixation_point,
+    is_forward_gaze,
+    rectification_rotation,
+    target_to_fixation,
 )
-from activestereo.types import Fixation, StereoRig
+from activestereo.types import (
+    Estimate,
+    Fixation,
+    FixationProposal,
+    RefusalReason,
+    StereoRig,
+    TargetRefused,
+)
 
 Z = np.array([0.0, 0.0, 1.0])
 
@@ -365,3 +379,568 @@ def test_tilted_listing_at_k_half_is_helmholtz(rig):
             az_e = np.arcsin(np.clip(g[0], -1.0, 1.0))
             el_e = np.arctan2(g[1], g[2])
             assert np.abs(R - helmholtz_rotation(az_e, el_e)).max() > 1e-5
+
+
+# ---------------------------------------------------------------------------
+# Migration step 5: rectification_rotation, is_forward_gaze, target_to_fixation.
+#
+# Every geometric test below uses elevation != 0 AND azimuth != 0. At el = 0 the
+# rectifier is the identity, so applying it, omitting it, or transposing it are
+# bit-identical -- the sagittal-gaze hole of docs/method/003. A test that fixates
+# straight ahead pins nothing here.
+# ---------------------------------------------------------------------------
+
+WIDE_RIG = StereoRig(baseline=0.064, focal_px=800.0, principal_point=(512.0, 640.0))
+FIELD_SHAPE = (1024, 1280)
+
+
+@pytest.fixture
+def wide_rig() -> StereoRig:
+    """A rig with a real principal point, so off-axis fixations land in-image.
+
+    The shared ``rig`` fixture puts the principal point at (0, 0), which is fine
+    for pure-geometry tests but makes every pixel index negative.
+    """
+    return WIDE_RIG
+
+
+def rect_rotation(el):
+    """Reference rectifier: the Helmholtz version rotation with azimuth zeroed.
+
+    Test-local and independent of the module -- it reuses ``helmholtz_rotation``
+    above, which is itself an independent reimplementation. This is also what
+    pins the naming decision: if ``rectification_rotation`` ever stops being
+    ``helmholtz_rotation(0, el)`` this equality fails.
+    """
+    return helmholtz_rotation(0.0, el)
+
+
+def project_rect(rig, el, points, centre):
+    """Project head-frame points into a rectified eye. Returns (row, col, z).
+
+    Written from the geometric definition rather than by calling
+    ``rectification_rotation`` / ``_project_one_eye``: a round trip through the
+    implementation's own helper is self-consistent and discriminates nothing.
+    """
+    v = (np.asarray(points, dtype=float) - np.asarray(centre)) @ rect_rotation(el)
+    return (
+        rig.focal_px * v[..., 1] / v[..., 2] + rig.principal_point[0],
+        rig.focal_px * v[..., 0] / v[..., 2] + rig.principal_point[1],
+        v[..., 2],
+    )
+
+
+def left_centre(rig):
+    return np.array([-rig.baseline / 2.0, 0.0, 0.0])
+
+
+def azimuth_landing_on_column(rig, target_col, el, mu):
+    """Azimuth whose fixation point projects onto exactly ``target_col``.
+
+    ``target_px`` is integral (ADR-0013: ``next_fixation`` returns a pixel), so
+    an exact round trip needs a fixation whose projection is exactly a pixel.
+    Bisection, not the module's inverse -- constructing the input with the
+    function under test is the vacuity trap.
+    """
+    lo, hi = -1.2, 1.2
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        _, col, _ = project_rect(
+            rig, el, fixation_point(rig, Fixation(mid, el, mu)), left_centre(rig)
+        )
+        if col < target_col:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+def depth_field_at(pixel, depth, variance=1e-4, shape=FIELD_SHAPE):
+    """An all-invalid depth field carrying one valid measurement at ``pixel``."""
+    value = np.full(shape, np.nan)
+    var = np.full(shape, np.nan)
+    value[pixel] = depth
+    var[pixel] = variance
+    return Estimate(value=value, variance=var)
+
+
+# Fixations whose fixation point lands on an exact pixel column. Azimuth is
+# solved per case; elevation and vergence are chosen to span the sweep.
+ROUNDTRIP_CASES = ((900, 0.4, 0.064), (400, -0.35, 0.02), (1100, 0.25, 0.3), (300, 0.6, 0.15))
+
+
+def roundtrip_inputs(rig, target_col, el, mu):
+    """(current, pixel, depth) for the acceptance round trip."""
+    az = azimuth_landing_on_column(rig, target_col, el, mu)
+    current = Fixation(az, el, mu)
+    row, col, z = project_rect(rig, el, fixation_point(rig, current), left_centre(rig))
+    return current, (round(float(row)), round(float(col))), float(z)
+
+
+@pytest.mark.parametrize(("target_col", "el", "mu"), ROUNDTRIP_CASES)
+def test_target_to_fixation_round_trips_the_current_fixation(wide_rig, target_col, el, mu):
+    """Oracle-free acceptance test: refixating on the current fixation is a no-op.
+
+    Project the fixation point into the rectified left frame, feed that pixel
+    back with its true depth, and the returned Fixation must be the one we
+    started from. No ground-truth table, no tolerance chosen to fit -- the
+    identity is forced by the geometry, and the negative controls below show
+    each way of getting it wrong is visible.
+    """
+    current, pixel, depth = roundtrip_inputs(wide_rig, target_col, el, mu)
+    result = target_to_fixation(pixel, depth_field_at(pixel, depth), wide_rig, current)
+
+    assert isinstance(result, FixationProposal)
+    assert result.fixation.azimuth == pytest.approx(current.azimuth, abs=1e-12)
+    assert result.fixation.elevation_down == pytest.approx(current.elevation_down, abs=1e-12)
+    assert result.fixation.vergence == pytest.approx(current.vergence, abs=1e-12)
+
+
+def reference_inverse(rig, pixel, depth, current, fault=None):
+    """Test-local unprojection, with an optional injected fault.
+
+    Used only by the negative-control test: it establishes that each fault is
+    *visible*, which an assertion about the correct implementation cannot.
+    """
+    row, col = pixel
+    rot = rect_rotation(current.elevation_down)
+    if fault == "transposed_rect":
+        rot = rot.T
+    centre = np.zeros(3) if fault == "cyclopean_origin" else left_centre(rig)
+    ray = rot @ np.array(
+        [
+            (col - rig.principal_point[1]) / rig.focal_px,
+            (row - rig.principal_point[0]) / rig.focal_px,
+            1.0,
+        ]
+    )
+    point = centre + depth * ray
+    dist = float(np.linalg.norm(point))
+    az = float(np.arcsin(point[0] / dist))
+    el = float(np.arctan2(point[1], point[2]))
+    if fault == "swapped_az_el":
+        az, el = el, az
+    half_b = rig.baseline / 2.0
+    mu = float(np.arctan(rig.baseline * dist * np.cos(az) / (dist * dist - half_b * half_b)))
+    return Fixation(az, el, mu)
+
+
+@pytest.mark.parametrize(
+    ("fault", "floor"),
+    [("transposed_rect", 1e-2), ("cyclopean_origin", 1e-3), ("swapped_az_el", 1e-2)],
+)
+def test_round_trip_negative_controls_are_visible(wide_rig, fault, floor):
+    """Each way of getting the unprojection wrong breaks the round trip.
+
+    Without this the acceptance test could be passing vacuously: a round trip is
+    exact whenever the inverse uses whatever convention the forward map used, so
+    it discriminates only against faults it can actually see.
+    """
+    current, pixel, depth = roundtrip_inputs(wide_rig, *ROUNDTRIP_CASES[0])
+    clean = reference_inverse(wide_rig, pixel, depth, current)
+    assert (
+        max(
+            abs(clean.azimuth - current.azimuth),
+            abs(clean.elevation_down - current.elevation_down),
+            abs(clean.vergence - current.vergence),
+        )
+        < 1e-12
+    ), "the fault-free reference must reproduce the fixation, or the controls prove nothing"
+
+    broken = reference_inverse(wide_rig, pixel, depth, current, fault=fault)
+    assert (
+        max(
+            abs(broken.azimuth - current.azimuth),
+            abs(broken.elevation_down - current.elevation_down),
+            abs(broken.vergence - current.vergence),
+        )
+        > floor
+    )
+
+
+def test_transposing_the_rectifier_breaks_the_round_trip(wide_rig, monkeypatch):
+    """The strongest form of the transpose control: fault the module itself."""
+    from activestereo.geometry import oculomotor
+
+    current, pixel, depth = roundtrip_inputs(wide_rig, *ROUNDTRIP_CASES[0])
+    original = oculomotor.rectification_rotation
+    monkeypatch.setattr(oculomotor, "rectification_rotation", lambda fx: original(fx).T)
+
+    result = oculomotor.target_to_fixation(pixel, depth_field_at(pixel, depth), wide_rig, current)
+    assert isinstance(result, FixationProposal)
+    assert abs(result.fixation.elevation_down - current.elevation_down) > 1e-2
+
+
+@pytest.mark.parametrize(
+    ("az", "el", "mu"), list(itertools.product((-0.3, 0.2), (-0.25, 0.35), (0.02, 0.3)))
+)
+def test_rectification_puts_the_plane_of_regard_on_the_principal_row(wide_rig, az, el, mu):
+    """The criterion that selects THIS member of the R_rect family (ADR-0017).
+
+    R_rect is fixed only up to a rotation about the baseline; every member gives
+    d_v == 0. What distinguishes this one is that the fixation point images on
+    the principal row. Independent of the round trip, which is transpose-blind
+    when both sides share a convention.
+    """
+    point = fixation_point(wide_rig, Fixation(az, el, mu))
+    row, _, _ = project_rect(wide_rig, el, point, left_centre(wide_rig))
+    assert row == pytest.approx(wide_rig.principal_point[0], abs=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("az", "el", "mu"), list(itertools.product((-0.3, 0.2), (-0.25, 0.35), (0.02, 0.3)))
+)
+def test_rectification_rotation_is_sufficient_for_rectification(wide_rig, rng, az, el, mu):
+    """Vertical disparity vanishes in the pair R_rect induces.
+
+    Named for the property it pins rather than for geometry/rectify.py, which
+    does not exist yet: this belongs to rectification_rotation, and step 6
+    extends it instead of writing a second copy against the module it owns.
+
+    Both eyes share an orientation and their centres differ along the head +X
+    axis, which R_rect fixes -- so rows agree exactly, not approximately.
+    """
+    points = rng.normal(size=(300, 3)) * np.array([0.4, 0.4, 0.2]) + np.array([0.0, 0.0, 1.8])
+    row_l, _, z_l = project_rect(wide_rig, el, points, left_centre(wide_rig))
+    row_r, _, z_r = project_rect(wide_rig, el, points, -left_centre(wide_rig))
+
+    # ADR-0002: validity is eye-indexed. A point behind either eye is not
+    # "zero vertical disparity", it is not imageable, and mixing the two is the
+    # masking violation the ADR exists to prevent.
+    imageable = (z_l > 0) & (z_r > 0)
+    assert imageable.sum() > 100, (
+        "degenerate sample: nothing imageable, the assertion below is vacuous"
+    )
+    assert np.abs(row_l[imageable] - row_r[imageable]).max() == 0.0
+
+
+def test_rectification_rotation_matches_helmholtz_with_azimuth_zeroed(wide_rig):
+    """The naming decision, pinned: R_rect IS the Helmholtz version rotation at az = 0."""
+    for el in (-0.6, -0.2, 0.0, 0.35, 0.9):
+        assert rectification_rotation(Fixation(0.4, el, 0.064)) == pytest.approx(
+            helmholtz_rotation(0.0, el), abs=1e-15
+        )
+
+
+def test_rectification_rotation_ignores_azimuth_and_vergence(wide_rig):
+    """Azimuth-independence is structural (ADR-0015), not approximate."""
+    reference = rectification_rotation(Fixation(0.0, 0.37, 0.0))
+    for az, mu in itertools.product((-0.9, -0.2, 0.5, 1.4), (0.0, 0.064, 0.5)):
+        assert rectification_rotation(Fixation(az, 0.37, mu)) == pytest.approx(reference, abs=1e-15)
+
+
+# --- the elevation domain hole -------------------------------------------------
+
+
+def test_is_forward_gaze_rejects_the_elevation_domain_hole():
+    """Fixation(0.1, 2.0, 0.064) is constructible and points BEHIND the head.
+
+    types.py validates finiteness and vergence >= 0 only, and every existing L1
+    function accepts this state without raising -- eye_rotations returns a
+    well-formed orthonormal matrix whose optical axis has negative z.
+    require_forward_azimuth cannot catch it: elevation is the free direction.
+    """
+    backward = Fixation(0.1, 2.0, 0.064)
+    assert not is_forward_gaze(backward)
+    # The state really is admitted everywhere else -- this is the hole, not a guess.
+    assert np.isfinite(fixation_distance(WIDE_RIG, backward))
+    assert fixation_point(WIDE_RIG, backward)[2] < 0.0
+    assert eye_rotations(WIDE_RIG, backward).left @ Z @ Z < 0.0
+
+
+def test_is_forward_gaze_changes_sign_at_pi_over_two():
+    """The sign change sits at pi/2, and the predicate is not fooled either side.
+
+    Deliberately not asserted *at* ``np.pi / 2``: that float is not pi/2, so
+    ``cos`` of it is +6.1e-17 and the point is degenerately in front. The
+    boundary is measure-zero and unreachable; what the guard has to catch is
+    gaze that is unambiguously backward, and that is what is pinned here.
+    """
+    assert is_forward_gaze(Fixation(0.0, np.pi / 2.0 - 1e-9, 0.064))
+    assert not is_forward_gaze(Fixation(0.0, np.pi / 2.0 + 1e-9, 0.064))
+    assert not is_forward_gaze(Fixation(0.0, -np.pi / 2.0 - 1e-9, 0.064))
+    assert is_forward_gaze(Fixation(0.3, -0.4, 0.064))
+
+
+# --- the error contract -------------------------------------------------------
+#
+# Bad input DATA is refused so the active loop can pick another target and exp008
+# can count what went wrong; a bad CALLER argument raises. Every refusal branch
+# below has a test that produces it -- a guard no test can trigger is a guard
+# nobody knows is dead (docs/method/003).
+
+BACKWARD_CURRENT = Fixation(0.2, 1.5, 0.064)
+NEAR_CURRENT = Fixation(0.2, 0.2, 0.064)
+
+
+def test_refuses_a_target_with_no_usable_depth(wide_rig):
+    """Absence of evidence: the half-occlusion signal exp008 is about."""
+    field = Estimate(np.full(FIELD_SHAPE, np.nan), np.full(FIELD_SHAPE, np.nan))
+    result = target_to_fixation((600, 700), field, wide_rig, NEAR_CURRENT)
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.DEPTH_UNAVAILABLE})
+
+
+def test_refuses_the_inf_variance_refusal_sentinel(wide_rig):
+    """(nan, inf) is L5's established 'no usable measurement' pair; honour it here too."""
+    field = depth_field_at((600, 700), np.nan, variance=np.inf)
+    result = target_to_fixation((600, 700), field, wide_rig, NEAR_CURRENT)
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.DEPTH_UNAVAILABLE})
+
+
+def test_refuses_non_positive_depth(wide_rig):
+    result = target_to_fixation(
+        (600, 700), depth_field_at((600, 700), -1.0), wide_rig, NEAR_CURRENT
+    )
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.DEPTH_NONPOSITIVE})
+
+
+def test_refuses_a_target_nearer_than_half_the_baseline(wide_rig):
+    """D <= b/2 has no forward vergence solution; the arctan would take the far branch.
+
+    Reachable only on the nasal side: D < b/2 needs the ray to run toward +x,
+    i.e. col > principal column for the left eye.
+    """
+    pixel = (512, 1200)
+    result = target_to_fixation(pixel, depth_field_at(pixel, 0.010), wide_rig, NEAR_CURRENT)
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.TOO_NEAR})
+
+
+def test_refuses_a_target_that_would_point_the_eyes_backward(wide_rig):
+    """el_new = el_current + atan((row - pp_row)/f), so the image cone can cross pi/2.
+
+    Reachable in one step once |el_current| > pi/2 - atan(half_height/f). Not a
+    hypothetical branch: this is the elevation hole types.py leaves open, now
+    closed for constructed fixations.
+    """
+    pixel = (1023, 640)
+    result = target_to_fixation(pixel, depth_field_at(pixel, 1.5), wide_rig, BACKWARD_CURRENT)
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.BACKWARD_GAZE})
+
+
+def test_co_occurring_refusals_are_all_reported(wide_rig):
+    """A target can be wrong in more than one way, and the set keeps both.
+
+    BACKWARD_GAZE and TOO_NEAR are independent: elevation needs no depth, so a
+    backward target is refused even under perfect depth. Returning a single
+    'first' reason would count this target once and make the co-occurrence
+    unrecoverable -- the same reduction as collapsing distinct kinds into None.
+    """
+    pixel = (1023, 1200)
+    result = target_to_fixation(pixel, depth_field_at(pixel, 0.010), wide_rig, BACKWARD_CURRENT)
+    assert isinstance(result, TargetRefused)
+    assert result.reasons == frozenset({RefusalReason.BACKWARD_GAZE, RefusalReason.TOO_NEAR})
+
+    # Same current fixation, same depth, column moved back to the principal
+    # column: only the elevation condition survives. If the two were evaluated
+    # as a chain rather than independently, this pair could not both hold.
+    only_backward = target_to_fixation(
+        (1023, 640), depth_field_at((1023, 640), 0.010), wide_rig, BACKWARD_CURRENT
+    )
+    assert isinstance(only_backward, TargetRefused)
+    assert only_backward.reasons == frozenset({RefusalReason.BACKWARD_GAZE})
+
+
+@pytest.mark.parametrize(
+    ("pixel", "match"),
+    [
+        ((-1, 10), "outside"),
+        ((10, -1), "outside"),
+        ((1024, 10), "outside"),
+        ((10, 1280), "outside"),
+    ],
+)
+def test_out_of_bounds_target_raises(wide_rig, pixel, match):
+    """A caller error, not a data-quality problem: refusing it would hide a bug."""
+    field = Estimate(np.full(FIELD_SHAPE, 1.5), np.full(FIELD_SHAPE, 1e-4))
+    with pytest.raises(ValueError, match=match):
+        target_to_fixation(pixel, field, wide_rig, NEAR_CURRENT)
+
+
+def test_non_integral_target_raises(wide_rig):
+    field = Estimate(np.full(FIELD_SHAPE, 1.5), np.full(FIELD_SHAPE, 1e-4))
+    with pytest.raises(ValueError, match="integral"):
+        target_to_fixation((10.5, 10), field, wide_rig, NEAR_CURRENT)
+
+
+def test_non_field_shaped_depth_raises(wide_rig):
+    """Field-shaped is what makes the bounds check above possible at all."""
+    scalar = Estimate(np.array(1.5), np.array(1e-4))
+    with pytest.raises(ValueError, match="2-D"):
+        target_to_fixation((10, 10), scalar, wide_rig, NEAR_CURRENT)
+
+
+# --- variance propagation -----------------------------------------------------
+
+
+def test_vergence_variance_is_linear_in_the_input_variance(wide_rig):
+    """Pins LINEAR PASS-THROUGH, which a docstring cannot.
+
+    First-order propagation is var_mu = J^2 var_Z, exactly proportional. Any
+    clip, floor, or quiet re-scaling of the anti-calibrated variance channel
+    breaks proportionality, and this fails across decades where a spot check
+    would not. The propagated variance is still the exp004/exp006
+    anti-calibrated one -- a correct derivative of a miscalibrated quantity.
+    """
+    pixel, depth = (600, 700), 1.5
+    base = target_to_fixation(
+        pixel, depth_field_at(pixel, depth, variance=1e-8), wide_rig, NEAR_CURRENT
+    )
+    assert isinstance(base, FixationProposal)
+
+    for decade in range(9):
+        scale = 10.0**decade
+        scaled = target_to_fixation(
+            pixel, depth_field_at(pixel, depth, variance=1e-8 * scale), wide_rig, NEAR_CURRENT
+        )
+        assert isinstance(scaled, FixationProposal)
+        assert scaled.vergence_variance == pytest.approx(base.vergence_variance * scale, rel=1e-12)
+        # The estimate itself must not move when only its uncertainty does.
+        assert scaled.fixation.vergence == pytest.approx(base.fixation.vergence, rel=1e-15)
+
+
+@pytest.mark.parametrize(
+    ("pixel", "depth"), [((600, 700), 1.5), ((300, 900), 0.8), ((800, 400), 3.0)]
+)
+def test_vergence_variance_jacobian_matches_finite_differences(wide_rig, pixel, depth):
+    """The analytic dmu/dZ, checked against the function's own output.
+
+    Depth enters mu through both the distance and the azimuth -- the left-centre
+    offset makes azimuth depth-dependent -- so dropping either chain-rule branch
+    is a silent factor error that a sign or magnitude check would miss.
+    """
+
+    def vergence_at(z):
+        result = target_to_fixation(pixel, depth_field_at(pixel, z), wide_rig, NEAR_CURRENT)
+        assert isinstance(result, FixationProposal)
+        return result.fixation.vergence
+
+    unit = target_to_fixation(
+        pixel, depth_field_at(pixel, depth, variance=1.0), wide_rig, NEAR_CURRENT
+    )
+    assert isinstance(unit, FixationProposal)
+
+    step = 1e-6 * depth
+    finite_difference = (vergence_at(depth + step) - vergence_at(depth - step)) / (2.0 * step)
+    assert np.sqrt(unit.vergence_variance) == pytest.approx(abs(finite_difference), rel=1e-6)
+
+
+UNNARROWED_SNIPPET = """
+import numpy as np
+
+from activestereo.geometry import target_to_fixation
+from activestereo.types import Estimate, Fixation, StereoRig
+
+result = target_to_fixation(
+    (1, 1),
+    Estimate(np.zeros((4, 4)), np.zeros((4, 4))),
+    StereoRig(baseline=0.064, focal_px=800.0),
+    Fixation(0.0, 0.0, 0.0),
+)
+print(result.fixation)
+"""
+
+NARROWED_SNIPPET = """
+import numpy as np
+
+from activestereo.geometry import target_to_fixation
+from activestereo.types import Estimate, Fixation, FixationProposal, StereoRig
+
+result = target_to_fixation(
+    (1, 1),
+    Estimate(np.zeros((4, 4)), np.zeros((4, 4))),
+    StereoRig(baseline=0.064, focal_px=800.0),
+    Fixation(0.0, 0.0, 0.0),
+)
+if isinstance(result, FixationProposal):
+    print(result.fixation)
+"""
+
+
+@pytest.mark.slow
+def test_the_refusal_union_forces_callers_to_narrow(tmp_path):
+    """The union's whole point is that a caller cannot skip the refusal branch.
+
+    Nothing in src/ consumes target_to_fixation until migration step 9, so no
+    ordinary test pins this and a one-off manual check decays silently. Marked
+    slow because it shells out to a type checker; skipped where mypy is absent
+    rather than failing on an environment difference.
+
+    Hermetic subprocess, following tests/unit/test_adr_hook.py: what is pinned is
+    the deployed checker's behaviour, not a reimplementation of it.
+    """
+    pytest.importorskip("mypy")
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    env = {**os.environ, "MYPYPATH": str(repo / "src")}
+
+    def run(source, name):
+        path = tmp_path / name
+        path.write_text(source)
+        return subprocess.run(
+            [sys.executable, "-m", "mypy", "--no-error-summary", str(path)],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+            env=env,
+        )
+
+    unnarrowed = run(UNNARROWED_SNIPPET, "unnarrowed.py")
+    assert unnarrowed.returncode != 0, "reading .fixation without narrowing must not type-check"
+    assert "union-attr" in unnarrowed.stdout
+
+    # The other half: narrowing must actually be *sufficient*. Without this the
+    # test would still pass if the union were unusable for a different reason.
+    narrowed = run(NARROWED_SNIPPET, "narrowed.py")
+    assert narrowed.returncode == 0, narrowed.stdout
+
+
+def test_is_forward_gaze_is_the_geometry_test_not_the_angle_test():
+    """Wrapped elevations separate the two, and only the geometry test is right.
+
+    abs(el) < pi/2 and cos(az)cos(el) > 0 agree except at the boundary and on
+    wrapped input. el = 7.0 wraps to 0.7168 and is plainly forward; the angle
+    test calls it backward. Pinned so nobody "simplifies" the predicate into the
+    comparison the prose around it uses.
+    """
+    for el in (0.3, 1.5, 1.6, 2.0, 3.0, 6.5, 7.0, -7.0):
+        wrapped = (el + np.pi) % (2.0 * np.pi) - np.pi
+        assert is_forward_gaze(Fixation(0.2, el, 0.064)) == (abs(wrapped) < np.pi / 2.0)
+    # The three cases where a naive angle test would have been wrong.
+    for el in (6.5, 7.0, -7.0):
+        assert is_forward_gaze(Fixation(0.2, el, 0.064)) is True
+        assert abs(el) > np.pi / 2.0
+
+
+def test_target_to_fixation_is_2pi_invariant_in_the_current_elevation(wide_rig):
+    """current.elevation_down enters only through cos/sin, so wrapping is invisible.
+
+    A partial answer to step 2's declared wrapping question, in the one place
+    step 5 touches it.
+
+    Invariant to floating-point precision, NOT bitwise: cos(7.0) and
+    cos(0.71681...) are not the same float, so the results differ in the last
+    ulp (~3e-16). Asserted with a tolerance because the exact-equality version of
+    this test fails, which is worth knowing before someone writes it.
+
+    Note also that the reachability closed form
+    el_new = el_current + atan((row - pp_row)/f) is an identity only modulo 2pi:
+    here it reads 7.109560, and the returned value is that minus 2pi.
+    """
+    pixel = (600, 700)
+    field = depth_field_at(pixel, 1.5)
+    principal = target_to_fixation(pixel, field, wide_rig, Fixation(0.2, 0.7168146928204138, 0.064))
+    wrapped = target_to_fixation(pixel, field, wide_rig, Fixation(0.2, 7.0, 0.064))
+    assert isinstance(principal, FixationProposal) and isinstance(wrapped, FixationProposal)
+    assert wrapped.fixation.elevation_down == pytest.approx(
+        principal.fixation.elevation_down, abs=1e-15
+    )
+    assert wrapped.fixation.azimuth == pytest.approx(principal.fixation.azimuth, abs=1e-15)
+    assert wrapped.fixation.vergence == pytest.approx(principal.fixation.vergence, abs=1e-15)
+    assert wrapped.vergence_variance == pytest.approx(principal.vergence_variance, rel=1e-12)
+
+    closed_form = 7.0 + np.arctan((pixel[0] - wide_rig.principal_point[0]) / wide_rig.focal_px)
+    assert wrapped.fixation.elevation_down == pytest.approx(closed_form - 2.0 * np.pi, abs=1e-12)
